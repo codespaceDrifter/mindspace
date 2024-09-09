@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 set(CMAKE_C_COMPILER C:/dev/msys64/mingw64/bin/gcc.exe)
 set(CMAKE_CXX_COMPILER C:/dev/msys64/mingw64/bin/g++.exe)
 
-project(threads)
+project(mindspace)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
@@ -18,9 +18,13 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
 
 
 set (HEADERS
-  ${INC_ROOT_DIR}
-  ${TEST_ROOT_DIR}
-  )
+  ${INC_ROOT_DIR}/tensor
+  ${INC_ROOT_DIR}/block
+  ${INC_ROOT_DIR}/model
+  ${INC_ROOT_DIR}/train
+  ${TEST_ROOT_DIR}/unit_test
+  ${TEST_ROOT_DIR}/benchmark
+)
 include_directories(${HEADERS})
 
 file (GLOB_RECURSE SRC ${SRC_ROOT_DIR}/*.cpp)

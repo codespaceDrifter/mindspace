@@ -1,0 +1,4 @@
+0: no customized parallel min/max operations
+1: no in place operations (i.e. for add equal)
+2: no "no grad" option. some stuff like initial data and masks cost extra memory
+3: maybe operations need to be part of an operations hpp and cpp file cause this means not having to code in place operations seperatedly. maybe. depends of cuda.

@@ -14,8 +14,9 @@
 enum class operationType{
     None,
     Add,
+    Mul,
     Matmul,
-    reduce_sum,
+    Max
 };
 
 struct Operation{
@@ -32,13 +33,16 @@ class Tensor{
 
 public:
 
-Tensor (std::vector<int> shape);
+Tensor (std::vector<int> shape, bool intermediate);
 
 template <typename... Indices>
-Tensor (Indices... indices) : Tensor(std::vector<int> {indices ...}){};
+Tensor (Indices... indices) : Tensor(std::vector<int> {indices ...}, false){};
 
 void init_grad ();
 void one_grad ();
+
+//inital data tensor and weight times weight tensors need intermediate to set true manually, not with this
+void set_intermediate();
 
 //operations
 void backprop ();
@@ -46,18 +50,24 @@ void backprop ();
 Tensor* add (Tensor* other);
 void add_backprop();
 
+Tensor* mul (Tensor* other);
+void mul_backprop();
+
 Tensor* matmul (Tensor* other);
 void matmul_backprop();
 
-//shape needs to contiguous at least, data do not. add an offset to the value_core of the result
-//Tensor* slice ()
-
+//order matters. this needs to be bigger than other in all dims
+Tensor* max (Tensor* other);
+void max_backprop();
 
 //member variables
 std::unique_ptr<TensorCore> value_core;
 std::unique_ptr<TensorCore> grad_core;
 
-std::vector<Tensor*> grad_fn;
+//intermediate tensors are deleted after each forward backward pass as opposed to weights
+bool intermediate;
+
+std::vector<Tensor*> operands;
 Operation op;
 };
 

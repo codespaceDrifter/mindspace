@@ -11,6 +11,7 @@ public:
 
 
 bool run_tests(bool debug = false){
+
     bool all_success = true;
 
     check(this->create_test(debug), all_success);
@@ -48,7 +49,7 @@ bool add_test(bool debug = false){
     C->one_grad();
     C->backprop();
     check (all_equal(A->grad_core.get(), 1), success);
-    check (all_equal(B->grad_core.get(), 1), success);
+    check (all_equal(B->grad_core.get(), 6), success);
     delete A;
     delete B;
     delete C;
@@ -89,15 +90,6 @@ bool matmul_test (bool debug = false){
     check (vec_all_equal(D->grad_core.get(), correct_D_grad), success);
     check (vec_all_equal(E->grad_core.get(), correct_E_grad), success);
 
-    std::cout<<"value core D E F"<<std::endl;
-    D->value_core->print();
-    E->value_core->print();
-    F->value_core->print();
-
-    std::cout<<"grad core D E F"<<std::endl;
-    D->grad_core->print();
-    E->grad_core->print();
-    F->grad_core->print();
 
     if (debug == true) std::cout<<"matmul tests: "<<bool_to_str(success)<<std::endl;
     return success;

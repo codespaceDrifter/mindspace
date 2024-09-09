@@ -20,18 +20,18 @@ bool run_tests(){
 bool create_test(){
     bool success = true;
 
-    TensorCore* A = TensorCore::createTensorCore();
+    TensorCore* A = TensorCore::create_TensorCore();
     check (A->data_size == 0, success);
     check (A->shape.size() == 0, success);
 
     std::vector<int> new_A_shape = {2,2,3}; 
     A->shape = new_A_shape;
-    A->shape_update();
+    A->contiguous();
     check (A->data_size == 12, success);
     check (all_equal(A, 0), success);
     delete A;
 
-    TensorCore* B = TensorCore::createTensorCore(5,1,1);
+    TensorCore* B = TensorCore::create_TensorCore(5,1,1);
     check (B->data_size == 5, success);
     check (all_equal(B, 0), success);
     delete B;

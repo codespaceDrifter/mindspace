@@ -5,7 +5,7 @@
 #include "tensor_core_test.hpp"
 
 bool run_all_tests(){
-    bool all_success;
+    bool all_success = true;
 
     TENSOR_CORE_TEST tensor_core_test;
     TENSOR_TEST tensor_test;
@@ -19,6 +19,7 @@ bool run_all_tests(){
 windows command to count line numbers, not including test folder:
 
 Get-ChildItem -Recurse -File | Where-Object { $_.FullName -notmatch "\\.vscode\\|\\cmake\\|\\test\\" } | Get-Content | Measure-Object -Line
+try to keep under 1500 lines
 
 
 */

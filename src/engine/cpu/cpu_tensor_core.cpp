@@ -6,7 +6,7 @@
 TensorCore* CpuTensorCore::add(TensorCore* other){
     assert (this->element_op_viable(other));
     std::vector<int> result_shape = this->max_broadcast_shape(other);
-    TensorCore* result = TensorCore::createTensorCore(result_shape);
+    TensorCore* result = TensorCore::create_TensorCore(result_shape);
     for (int i = 0; i < result->data_size; ++i){
         std::vector<int> indices = result->f_s(i);
         result->idx(indices) = this->idx(indices) + other->idx(indices);
@@ -18,7 +18,7 @@ TensorCore* CpuTensorCore::add(TensorCore* other){
 TensorCore* CpuTensorCore::mul(TensorCore* other){
     assert (this->element_op_viable(other));
     std::vector<int> result_shape = this->max_broadcast_shape(other);
-    TensorCore* result = TensorCore::createTensorCore(result_shape);
+    TensorCore* result = TensorCore::create_TensorCore(result_shape);
     for (int i = 0; i < result->data_size; ++i){
         std::vector<int> indices = result->f_s(i);
         result->idx(indices) = this->idx(indices) * other->idx(indices);
@@ -27,7 +27,7 @@ TensorCore* CpuTensorCore::mul(TensorCore* other){
 }
 
 TensorCore* CpuTensorCore::reduce_sum(std::vector<int> result_shape){
-    TensorCore* result = TensorCore::createTensorCore(result_shape);
+    TensorCore* result = TensorCore::create_TensorCore(result_shape);
     for (int i = 0; i < this->data_size; ++i){
         std::vector<int> indices = this->f_s(i);
         result->idx(indices) += this->idx(indices);
@@ -35,15 +35,16 @@ TensorCore* CpuTensorCore::reduce_sum(std::vector<int> result_shape){
     return result;
 }
 
-TensorCore* CpuTensorCore::matmul(TensorCore* other){
-    assert (this->matmul_viable(other));
-    std::unique_ptr<TensorCore> A = this->unsqueeze(-2);
-    std::unique_ptr<TensorCore> B = other->transpose()->unsqueeze(-3);
-
-    TensorCore* C = A->mul(B);
-    TensorCore* C_reduced = C->reduce_sum(-1);
-
-    delete C;
-    C_reduced->squeeze_(-1);
-    return C_reduced;
+TensorCore* CpuTensorCore::compare (TensorCore* other){
+    assert (this->element_op_viable(other));
+    std::vector<int> result_shape = this->max_broadcast_shape(other);
+    TensorCore* result = TensorCore::create_TensorCore(result_shape);
+    for (int i = 0; i < this->data_size; ++i){
+        std::vector<int> indices = this->f_s(i);
+        float cur_this = this->idx(indices);
+        float cur_other = other->idx(indices);
+        if (cur_this >= cur_other) result->idx(indices) = 1;
+        else result->idx(indices) = 0;
+    }
+    return result;
 }

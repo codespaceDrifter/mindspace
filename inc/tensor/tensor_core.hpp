@@ -8,21 +8,26 @@
 #include <map>
 #include <algorithm>
 #include <memory>
+#include <utility>
+#include <optional>
 
-//common class defined in tensor_core.cpp. specific vendors for parallelism defined in [platform]_tensor_core.cpp
+//common class defined in tensor_core.cpp. specific vendors for parallelism defined in engine folder
+
+
 
 class TensorCore{
 
 public:
 
 template <typename... Indices>
-static TensorCore* createTensorCore(Indices... indices){
+static TensorCore* create_TensorCore(Indices... indices){
     std::vector<int> indices_vec = {indices...};
-    return TensorCore::createTensorCore(indices_vec);
+    return TensorCore::create_TensorCore(indices_vec);
 }     
 
 //creates a platform specific tensorcore.
-static TensorCore* createTensorCore(std::vector<int> shape);
+static TensorCore* create_TensorCore(std::vector<int> shape);
+
 
 TensorCore(): TensorCore (std::vector<int>{1,1}){};
 
@@ -41,9 +46,11 @@ void data_resize(int new_size);
 void data_switch (float* new_data, int new_size = -1);
 
 //stride use lazy broadcasting, so strides for where shape 1 is 0.
-void shape_update();
+void contiguous();
 
-void randomize(float low = -1, float high = 1);
+static TensorCore* make_a_num (float num);
+
+void randomize(float low = -0.5, float high = 0.5);
 void fill(float value);
 void arrange(int start = 0);
 
@@ -54,6 +61,8 @@ void print();
 std::string to_string();
 
 // converts a flat index to a shape index
+
+
 inline __attribute__((always_inline)) static std::vector<int> shape_to_indices(const std::vector<int>& shape, int idx){
     std::vector<int> result;
     int cur_group = idx;
@@ -73,7 +82,7 @@ inline __attribute__((always_inline)) float& idx (std::vector<int> indices_vec){
     indices_vec.erase(indices_vec.begin(), indices_vec.begin() + indices_vec.size() - this->shape.size());
     int data_idx = 0;
     for (int i = 0; i < indices_vec.size(); ++i){
-        data_idx += (indices_vec[i])* this->stride[i];
+        data_idx += (indices_vec[i] + offset[i])* this->stride[i];
     }
     return this->data[data_idx];
 }
@@ -85,13 +94,18 @@ inline __attribute__((always_inline)) float& idx (Indices... indices){
 }
 
 
-//shallow equal holds the same data ptr
+//shallow equal holds the same data ptr. does not call shape update to make data contiguous
 std::unique_ptr<TensorCore> create_shallow_equal ();
 std::unique_ptr<TensorCore> create_deep_equal ();
 
-//not contiguous. can use squeeze and unsqueeze after tho
+
+using Slice = std::optional<std::pair<int, int>>; 
+std::unique_ptr<TensorCore> slice(std::vector<Slice> slices);
+void slice_ (std::vector<Slice> slices);
+
+static TensorCore* vertical_stack (std::vector<TensorCore*> tensor_vec);
+
 std::unique_ptr<TensorCore> transpose(int dim1 = -1, int dim2 = -2);
-// contiguous
 void transpose_ (int dim1 = -1, int dim2 = -2);
 
 std::unique_ptr<TensorCore> squeeze(int dim);
@@ -100,28 +114,38 @@ void squeeze_ (int dim);
 std::unique_ptr<TensorCore> unsqueeze(int dim);
 void unsqueeze_ (int dim);
 
+TensorCore* toggle_bits();
 std::vector<int> max_broadcast_shape (TensorCore* other) const;
-
-
 bool element_op_viable(TensorCore* other) const;
 bool matmul_viable (TensorCore* other) const;
 
-TensorCore* reduce_sum (int idx){
-
-    if (idx < 0) idx = this->shape.size() + idx;
-    assert (this->shape.size() > idx && idx > 0);
-    std::vector<int> result_shape = this->shape;
-    result_shape[idx] = 1;
-    return this->reduce_sum(result_shape);
-}
-
-//currently all operations assume a (batch, row, col) operates on (row, col) shape. operates on last two dimensions and broadcasts into batch
+//operations need to be parallized in backends in engine folder
 virtual TensorCore* add (TensorCore* other) = 0;
 virtual TensorCore* mul (TensorCore* other) = 0;
 virtual TensorCore* reduce_sum (std::vector<int> result_shape) = 0;
-virtual TensorCore* matmul (TensorCore* other) = 0;
+virtual TensorCore* compare (TensorCore* other) = 0;
+
+//operations that are NOT optimized. they use parallized operations above, but either lead to TOO high memory or are NOT optimized for speed for specific hardware
+//might fix later
+TensorCore* matmul (TensorCore* other);
+TensorCore* max (TensorCore* other);
+TensorCore* min (TensorCore* other);
+
+//parameters
+float* data;
+int data_size;
+bool owns_data;
+
+std::vector<int> shape;
+std::vector<int> offset;
+std::vector<int> stride;
 
 
+// operation other forms
+
+TensorCore* add (int val);
+TensorCore* mul (int val);
+TensorCore* reduce_sum (int idx);
 
 //unique ptr versions
 std::vector<int> max_broadcast_shape (std::unique_ptr<TensorCore>& other) const {return this->max_broadcast_shape(other.get());};
@@ -130,14 +154,9 @@ bool matmul_viable (std::unique_ptr<TensorCore>& other) const {return this->matm
 TensorCore* add (std::unique_ptr<TensorCore>& other) {return this->add(other.get());};
 TensorCore* mul (std::unique_ptr<TensorCore>& other) {return this->mul(other.get());};
 TensorCore* matmul (std::unique_ptr<TensorCore>& other) {return this->matmul(other.get());};
-
-float* data;
-int data_size;
-bool owns_data;
-
-std::vector<int> shape;
-std::vector<int> stride;
-
+TensorCore* compare (std::unique_ptr<TensorCore>& other) {return this->compare(other.get());};
+TensorCore* max (std::unique_ptr<TensorCore>& other) {return this->max(other.get());};
+TensorCore* min (std::unique_ptr<TensorCore>& other) {return this->min(other.get());};
 };
 
 class CpuTensorCore : public TensorCore{
@@ -145,8 +164,8 @@ public:
 using TensorCore::TensorCore;
 TensorCore* add (TensorCore* other) override ;
 TensorCore* mul (TensorCore* other) override;
-TensorCore* matmul (TensorCore* other) override;
 TensorCore* reduce_sum (std::vector<int> result_shape) override;
+TensorCore* compare (TensorCore* other) override;
 };
 
 //add OpenclTensorCore, CudaTensorCore, MetalTensorCore, etc.
