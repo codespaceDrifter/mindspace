@@ -7,13 +7,13 @@ class DropoutLayer : public Block{
 public:
 
 // input is number of weights, output is number of neurons
-DropoutLayer(std::vector<int>input_shape, float percentage = 0.1);
+DropoutLayer(float percentage = 0.1);
 
-~DropoutLayer() override;
-
+void delete_parameters();
 Tensor* forward(Tensor* input) override;
+std::vector<Tensor*> self_parameters() override;
 
-Tensor* mask;
+Tensor* percent;
 };
 
 #endif

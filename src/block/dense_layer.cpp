@@ -8,10 +8,11 @@ DenseLayer::DenseLayer(int input, int output){
     this->bias->value_core->randomize();
 }
 
-DenseLayer::~DenseLayer(){
+void DenseLayer::delete_parameters(){
     delete this->weight;
     delete this->bias;
 }
+
 
 Tensor* DenseLayer::forward(Tensor* input){
     Tensor* A = input->matmul(this->weight);

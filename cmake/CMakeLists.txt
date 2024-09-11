@@ -22,15 +22,17 @@ set (HEADERS
   ${INC_ROOT_DIR}/block
   ${INC_ROOT_DIR}/model
   ${INC_ROOT_DIR}/train
-  ${TEST_ROOT_DIR}/unit_test
-  ${TEST_ROOT_DIR}/benchmark
+  ${TEST_ROOT_DIR}/inc/unit_test
+  ${TEST_ROOT_DIR}/inc/benchmark
 )
 include_directories(${HEADERS})
 
 file (GLOB_RECURSE SRC ${SRC_ROOT_DIR}/*.cpp)
+file (GLOB_RECURSE TEST_SRC % {TEST_ROOT_DIR}/*.cpp)
 
 set(SOURCES
   ${SRC}
+  ${TEST_SRC}
 )
 
 add_executable(main ${SOURCES})

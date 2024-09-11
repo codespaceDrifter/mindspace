@@ -6,10 +6,26 @@
 
 class Block {
 public:
-virtual ~Block() {}
+
+~Block() {
+    this->delete_parameters();
+    this->delete_sub_blocks();
+}
+
+virtual void delete_parameters() {};
+
+void delete_sub_blocks(){
+    for (Block* sub_block: this->sub_blocks){
+        delete sub_block;
+    }
+}
+
+
+
 
 virtual Tensor* forward(Tensor* input) = 0;
 
+//for updating, saving, and loading
 virtual std::vector<Tensor*> self_parameters() = 0;
 
 std::vector<Tensor*> sub_blocks_parameters(){
@@ -45,6 +61,7 @@ save load format
 
 Blocks: Blocks have two parts. parameter tensor number and subblocks
 the size of meta data bytes is recorded at the start, so program knows when to start loading tensors
+the parameters function and sub_blocks variable should provide all the data needed for this
 i.e.
 
 FFW BLOCK

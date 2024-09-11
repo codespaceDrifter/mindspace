@@ -8,7 +8,7 @@ ReluLayer::ReluLayer(){
     this->zero->intermediate = true;
 }
 
-ReluLayer::~ReluLayer(){
+void ReluLayer::delete_parameters(){
     delete this->zero;
 }
 
@@ -19,6 +19,5 @@ Tensor* ReluLayer::forward(Tensor* input){
 
 
 std::vector<Tensor*> ReluLayer::self_parameters(){
-    std::vector<Tensor*> result;
-    return result;
+    return {};
 }

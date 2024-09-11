@@ -11,7 +11,7 @@ public:
 DenseLayer(int input, int output);
 
 
-~DenseLayer() override;
+void delete_parameters();
 Tensor* forward(Tensor* input) override;
 std::vector<Tensor*> self_parameters() override;
 

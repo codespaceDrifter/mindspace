@@ -8,7 +8,7 @@ public:
 
 ReluLayer();
 
-~ReluLayer() override;
+void delete_parameters() override;
 Tensor* forward(Tensor* input) override;
 std::vector<Tensor*> self_parameters() override;
 
