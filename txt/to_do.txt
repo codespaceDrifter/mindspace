@@ -1,0 +1,12 @@
+dont know what is wrong with deep_equal idx error
+
+0: Tensor Save Load (pass start and end byte in as ints);
+1: CUDA tutorial
+2: CUDA tensor ops
+3: transformer blocks
+5: tests for blocks
+
+
+
+unrelated:
+make a razor extension the underclocks cpu and sets settings to save power

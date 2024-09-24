@@ -9,30 +9,29 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
 
 set(PROJECT_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
-set (INC_ROOT_DIR ${PROJECT_ROOT_DIR}/inc)
-set (SRC_ROOT_DIR ${PROJECT_ROOT_DIR}/src)
-set (TEST_ROOT_DIR ${PROJECT_ROOT_DIR}/test)
 
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
 
 
 set (HEADERS
-  ${INC_ROOT_DIR}/tensor
-  ${INC_ROOT_DIR}/block
-  ${INC_ROOT_DIR}/model
-  ${INC_ROOT_DIR}/train
-  ${TEST_ROOT_DIR}/inc/unit_test
-  ${TEST_ROOT_DIR}/inc/benchmark
+  ${PROJECT_ROOT_DIR}/tensor/inc
+  ${PROJECT_ROOT_DIR}/test/unit_test/inc
 )
 include_directories(${HEADERS})
 
-file (GLOB_RECURSE SRC ${SRC_ROOT_DIR}/*.cpp)
-file (GLOB_RECURSE TEST_SRC % {TEST_ROOT_DIR}/*.cpp)
+file (GLOB_RECURSE TENSOR_SRC ${PROJECT_ROOT_DIR}/tensor/src/*.cpp)
+file (GLOB_RECURSE CPU_ENGINE_SRC ${PROJECT_ROOT_DIR}/engine/cpu/*.cpp)
+file (GLOB_RECURSE CUDA_ENGINE_SRC ${PROJECT_ROOT_DIR}/engine/cuda/*.cpp)
+file (GLOB_RECURSE UNIT_TEST_SRC ${PROJECT_ROOT_DIR}/test/unit_test/src/*.cpp)
+
 
 set(SOURCES
-  ${SRC}
-  ${TEST_SRC}
+  ${PROJECT_ROOT_DIR}/main.cpp
+  ${TENSOR_SRC}
+  ${CPU_ENGINE_SRC}
+  ${CUDA_ENGINE_SRC}
+  ${UNIT_TEST_SRC}
 )
 
 add_executable(main ${SOURCES})
