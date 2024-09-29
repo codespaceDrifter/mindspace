@@ -8,8 +8,10 @@ int main (){
 
     for (int i = 0; i < 100; ++i){
         run_all_tests();
-        std::cout<<i<<"  ";
+        std::cout<<"TEST RUN NUM: "<< i<<"  ";
     }
+
+    //run_all_tests();
 
     return 0;
 }

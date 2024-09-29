@@ -111,13 +111,7 @@ void reduce_sum (Tensor* A, std::vector<int> target_shape, Tensor*& output){
         assert (target_shape[i] <= A->shape[i+ size_diff] && target_shape[i] >= 0);
     }
 
-
-
-
     assert (A != output);
-
-
-
 
     output = new Tensor (target_shape);
 
@@ -190,10 +184,10 @@ void matmul (Tensor* A, Tensor*B, Tensor*& output){
     std::unique_ptr<Tensor> B_view = B->transpose()->unsqueeze(-3);
 
 
-    Tensor* C;
+    Tensor* C = nullptr;
     mul (A_view.get(), B_view.get(), C);
 
-    Tensor* C_reduced;
+    Tensor* C_reduced = nullptr;
     reduce_sum (C, -1, C_reduced);
 
     C_reduced->squeeze_(-1);
@@ -228,6 +222,7 @@ void element_create (Tensor*A, Tensor*B, Tensor*& output){
     if (A == output || B == output){
         return;
     }
+    assert (output == nullptr);
     std::vector<int> output_shape = A->max_broadcast_shape(B);
     output = new Tensor (output_shape);
 }
@@ -247,8 +242,6 @@ bool element_op_viable(Tensor*A, Tensor*B, Tensor* output){
     for (int i = 0; i < A_padded.size(); ++i){
         if (A_padded[i] != B_padded[i] && A_padded[i] != 1 && B_padded[i] != 1){
 
-            std::cout<<"A: "<<A_padded[i]<<"B: "<<B_padded[i]<<std::endl;
-
             return false;
         }
     }
@@ -257,11 +250,6 @@ bool element_op_viable(Tensor*A, Tensor*B, Tensor* output){
     if (A == output || B == output){
         for (int i = 0; i < A_padded.size(); ++i){
             if (A_padded[i] != B_padded[i]){
-
-                std::cout<<"A: "<<Tensor::vec_str(A_padded);
-                std::cout<<"B: "<<Tensor::vec_str(B_padded);
-                A->print();
-                B->print();
 
                 return false;
             }

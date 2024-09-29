@@ -393,7 +393,9 @@ void Tensor::unsqueeze_ (int dim){
 
 void Tensor::init_grad (){
     assert (this->grad == nullptr);
-    assert (this->requires_grad == true);
+
+    if (this->requires_grad == false) return;
+
     if (this->owns_data == true){
         this->grad = new Tensor (this->shape,false);
     } else {
@@ -437,6 +439,7 @@ void Tensor::backward_model (bool delete_intermediate){
     }
 
     for (int i = 0; i < reverse_sorted.size(); ++i){
+        //reverse_sorted[i]->print();
         reverse_sorted[i]->backprop();
     }
 
@@ -633,8 +636,8 @@ void Tensor::accumulate_grad (Tensor* grad_A, Tensor* grad_B){
     Tensor* operand_A = this->operands[0];
     Tensor* operand_B = this->operands[1];
 
-    Tensor* reduced_grad_A;
-    Tensor* reduced_grad_B;
+    Tensor* reduced_grad_A = nullptr;
+    Tensor* reduced_grad_B = nullptr;
     Op::reduce_sum(grad_A, operand_A->shape, reduced_grad_A);
     Op::reduce_sum(grad_B, operand_B->shape, reduced_grad_B);
 
@@ -654,7 +657,7 @@ void Tensor::add_backprop(){
 
 void Tensor::minus_backprop(){
     Tensor* grad_A = this->grad;
-    Tensor* grad_B;
+    Tensor* grad_B = nullptr;
     Op::mul (this->grad, -1, grad_B);
     this->accumulate_grad(grad_A, grad_B);
     delete grad_B;
@@ -664,8 +667,8 @@ void Tensor::mul_backprop(){
     Tensor* operand_A = this->operands[0];
     Tensor* operand_B = this->operands[1];
 
-    Tensor* grad_A;
-    Tensor* grad_B;
+    Tensor* grad_A = nullptr;
+    Tensor* grad_B = nullptr;
 
     Op::mul(this->grad, operand_B, grad_A);
     Op::mul(this->grad, operand_A, grad_B);
@@ -679,14 +682,14 @@ void Tensor::div_backprop(){
     Tensor* operand_A = this->operands[0];
     Tensor* operand_B = this->operands[1];
 
-    Tensor* grad_A;
-    Tensor* grad_B;
+    Tensor* grad_A = nullptr;
+    Tensor* grad_B = nullptr;
 
     Op::div (this->grad, operand_B, grad_A);
 
-    Tensor* b_squared;
-    Tensor* neg_a;
-    Tensor* neg_a_div_b_squared;
+    Tensor* b_squared = nullptr;
+    Tensor* neg_a = nullptr;
+    Tensor* neg_a_div_b_squared = nullptr;
     Op::pow (operand_B, 2, b_squared);
     Op::mul (operand_A,-1 , neg_a);
     Op::div (neg_a, b_squared, neg_a_div_b_squared);
@@ -704,19 +707,19 @@ void Tensor::pow_backprop(){
     Tensor* operand_A = this->operands[0];
     Tensor* operand_B = this->operands[1];
 
-    Tensor* grad_A;
-    Tensor* grad_B;
+    Tensor* grad_A = nullptr;
+    Tensor* grad_B = nullptr;
 
-    Tensor* B_minus_one;
-    Tensor* A_pow_B_minus_one;
+    Tensor* B_minus_one = nullptr;
+    Tensor* A_pow_B_minus_one = nullptr;
     Op::minus (operand_B, 1, B_minus_one);
     Op::pow (operand_A, B_minus_one, A_pow_B_minus_one);
     Op::mul (operand_B, A_pow_B_minus_one, grad_A);
     delete B_minus_one;
     delete A_pow_B_minus_one;
 
-    Tensor* A_pow_B;
-    Tensor* ln_A;
+    Tensor* A_pow_B = nullptr;
+    Tensor* ln_A = nullptr;
     Op::pow(operand_A, operand_B, A_pow_B);
     float e = std::exp(1.0f);
     Op::log(operand_A, e, ln_A);
@@ -740,13 +743,13 @@ void Tensor::max_backprop(){
     Tensor* operand_A = this->operands[0];
     Tensor* operand_B = this->operands[1];
 
-    Tensor* A_comp_B;
-    Tensor* B_comp_A;
+    Tensor* A_comp_B = nullptr;
+    Tensor* B_comp_A = nullptr;
     Op::compare(operand_A, operand_B, A_comp_B);
     Op::minus (1, A_comp_B, B_comp_A);
 
-    Tensor* grad_A;
-    Tensor* grad_B;
+    Tensor* grad_A = nullptr;
+    Tensor* grad_B = nullptr;
     Op::mul (this->grad, A_comp_B, grad_A);
     Op::mul (this->grad, B_comp_A, grad_B);
     delete A_comp_B;
@@ -761,13 +764,13 @@ void Tensor::min_backprop(){
     Tensor* operand_A = this->operands[0];
     Tensor* operand_B = this->operands[1];
 
-    Tensor* A_comp_B_reversed;
-    Tensor* B_comp_A_reversed;
+    Tensor* A_comp_B_reversed = nullptr;
+    Tensor* B_comp_A_reversed = nullptr;
     Op::compare(operand_B, operand_A, A_comp_B_reversed);
     Op::minus (1, A_comp_B_reversed, B_comp_A_reversed);
 
-    Tensor* grad_A;
-    Tensor* grad_B;
+    Tensor* grad_A = nullptr;
+    Tensor* grad_B = nullptr;
     Op::mul (this->grad, A_comp_B_reversed, grad_A);
     Op::mul (this->grad, B_comp_A_reversed, grad_B);
     delete A_comp_B_reversed;
@@ -782,8 +785,8 @@ void Tensor::matmul_backprop(){
     Tensor* operand_A = this->operands[0];
     Tensor* operand_B = this->operands[1];
 
-    Tensor* grad_A;
-    Tensor* grad_B;
+    Tensor* grad_A = nullptr;
+    Tensor* grad_B = nullptr;
 
     Op::matmul (this->grad, operand_B->transpose().get(), grad_A);
     Op::matmul (operand_A->transpose().get(), this->grad, grad_B);

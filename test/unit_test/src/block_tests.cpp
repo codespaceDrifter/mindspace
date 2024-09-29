@@ -26,7 +26,7 @@ void BlockTest::dense_layer_test(){
 
     result->backward_model();
     delete input;
-    delete dense;
+    dense->delete_model();
 
     this->check_all_passed(success);
     std::cout<<"Dense Layer Test: "<<bool_to_str(success)<<std::endl;
@@ -47,7 +47,7 @@ void BlockTest::relu_test(){
 
     result->backward_model();
     delete input;
-    delete relu;
+    relu->delete_model();
 
     this->check_all_passed(success);
     std::cout<<"Relu Layer Test: "<<bool_to_str(success)<<std::endl;
@@ -67,7 +67,7 @@ void BlockTest::dropout_test(){
 
     result->backward_model();
     delete input;
-    delete dropout;
+    dropout->delete_model();
 
     this->check_all_passed(success);
     std::cout<<"Dropout Layer Test: "<<bool_to_str(success)<<std::endl;
@@ -114,10 +114,9 @@ void BlockTest::save_load_test(){
     check (all_equal (result->shape, {2,3}), success);
     check (all_equal (result, {0,1,2,0,0,4}), success);
 
-    result->backward_model();
+    result->backward_model(false);
 
     delete input;
-
     ffwblock2->delete_model();
 
     this->check_all_passed(success);

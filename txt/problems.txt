@@ -4,7 +4,7 @@
 3: maybe operations need to be part of an operations hpp and cpp file cause this means not having to code in place operations seperatedly. maybe. depends of cuda.
 4: there is no training mode memory saving support. intermediate values are not deleted right after they are used, only after a complete forward pass.
 
-
+maybe add support to make the NO GRAD option actually mean sth in tensor.cpp rather than just make operations skip nullptrs
 
 gonna fix:
 0, 1, 2, 3

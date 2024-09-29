@@ -1,6 +1,5 @@
 dont know what is wrong with deep_equal idx error
 
-0: Tensor Save Load (pass start and end byte in as ints); TMMR
 1: transformer blocks, tests for blocks, save load: THURSDAY
 
 the rest: FRIDAY, SATURDAY, SUNDAY

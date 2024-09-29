@@ -10,7 +10,7 @@ void run_all_tests(){
     tensor_test.run_tests();
     */
     BlockTest block_test = BlockTest();
-    block_test.save_load_test();
+    block_test.run_tests();
 }
 
 
