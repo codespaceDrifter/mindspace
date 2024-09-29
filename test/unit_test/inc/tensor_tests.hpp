@@ -32,8 +32,6 @@ void pow_test();
 
 void reduce_sum_test();
 
-
-
 void compare_test();
 
 void max_test();
@@ -45,6 +43,8 @@ void matmul_test();
 void in_place_ops_test();
 
 void views_backprop_test();
+
+void save_load_test();
 
 };
 

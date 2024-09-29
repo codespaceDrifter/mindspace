@@ -18,7 +18,7 @@ void TensorTest::run_tests(){
     this->matmul_test();
     this-> views_backprop_test();
     this->in_place_ops_test();
-
+    this->save_load_test();
     std::cout<< "TENSOR TESTS: " << bool_to_str(all_passed);
 }
 
@@ -165,7 +165,7 @@ void TensorTest::add_test(){
     check (all_equal(C, {0,1,1,2,2,3,3,4}), success);
     if (this->debug == true) std::cout<<"add: " <<bool_to_str(success);    
 
-    C->backward();
+    C->backward_model();
 
     check (all_equal (A->grad, 2), success);
     check (all_equal (B->grad, 4), success);
@@ -188,7 +188,7 @@ void TensorTest::minus_test(){
     Tensor* C = A->minus(B);
     check (all_equal(C->shape,{2,2}),success);
     check (all_equal(C, {0,1,-1,0}), success);
-    C->backward();
+    C->backward_model();
     check (all_equal (A->grad, 2), success);
     check (all_equal (B->grad, -2), success);
 
@@ -209,7 +209,7 @@ void TensorTest::mul_test(){
     check (all_equal (C->shape, {2,2}),success);
     check (all_equal (C, {0,1,0,3}), success);
 
-    C->backward();
+    C->backward_model();
     check (all_equal (A->grad, {0,1,0,1}), success);
     check (all_equal (B->grad, {2,4}), success);
 
@@ -231,7 +231,7 @@ void TensorTest::div_test(){
     check (all_equal (C->shape, {2,2}),success);
     check (all_equal (C, {0,0.5,2,1.5}), success);
 
-    C->backward();
+    C->backward_model();
     check (all_equal (A->grad, {1,0.5,1,0.5}), success);
     check (all_equal (B->grad, {-2,-1}), success);
 
@@ -252,7 +252,7 @@ void TensorTest::pow_test(){
     check (all_equal (C->shape,{2,2}),success);
     check (all_equal(C, {1,4,3,16}), success);
 
-    C->backward();
+    C->backward_model();
     check (all_equal(A->grad, {1,4,1,8}),success);
     check (all_equal(B->grad, {float (3 * std::log(3)), float(4 * std::log(2) + 16 * std::log(4) ) }) , success);
 
@@ -274,7 +274,7 @@ void TensorTest::reduce_sum_test(){
     check (all_equal (B->shape, {1,2,1}), success);
     check (all_equal (B, {10,18}), success);
 
-    B->backward();
+    B->backward_model();
     check (all_equal ( A->grad, 1), success);
 
     delete A;
@@ -365,7 +365,7 @@ void TensorTest::matmul_test(){
     std::vector<float> correct_C_value {3,4,5,9,14,19,15,24,33,21,34,47};
     check (all_equal(C, correct_C_value), success);
     
-    C->backward();
+    C->backward_model();
 
     std::vector<float> correct_A_grad {3,12,3,12,3,12,3,12};
     std::vector<float> correct_B_grad {12,12,12,16,16,16};
@@ -389,7 +389,7 @@ void TensorTest::views_backprop_test(){
 
     check (all_equal(D, {0,3,1,4}), success);
 
-    D->backward();
+    D->backward_model();
 
     check (all_equal(A->grad, {3,3,1,1}), success);
 
@@ -425,4 +425,52 @@ void TensorTest::in_place_ops_test(){
 
     this->check_all_passed(success);
     std::cout<<"in place operations test: "<<bool_to_str(success)<<std::endl;
+}
+
+void TensorTest::save_load_test(){
+    bool success = true;
+
+    std::ofstream out_file("bin/save_load_test.bin", std::ios::binary);
+    if (!out_file) {
+        std::cerr << "Error opening file for writing." << std::endl;
+        return;
+    }
+
+    Tensor * A = new Tensor (2,3);
+    A->arrange();
+
+    Tensor * B = new Tensor (1,2);
+    B->arrange ();
+
+    A->save(out_file);
+    B->save(out_file);
+    out_file.close();
+
+    std::ifstream in_file ("bin/save_load_test.bin", std::ios::binary);
+    if (!in_file) {
+        std::cerr << "Error opening file for reading." << std::endl;
+        return;
+    }
+    
+    Tensor * C = new Tensor ();
+    Tensor * D = new Tensor ();
+
+    C->load (in_file);
+    D->load (in_file);
+
+    in_file.close();
+
+    check (all_equal (A, C), success);
+    check (all_equal (B,D), success);
+
+    std::remove("bin/save_load_test.bin");
+
+    delete A;
+    delete B;
+    delete C;
+    delete D;
+
+
+    this->check_all_passed(success);
+    std::cout<<"save load test: "<<bool_to_str(success)<<std::endl;
 }

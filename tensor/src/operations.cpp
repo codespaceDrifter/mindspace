@@ -12,6 +12,7 @@ platforms get_platforms(){
 }
 
 void add (Tensor* A, Tensor*B, Tensor*& output){
+    if (A == nullptr || B == nullptr) return;
     assert (element_op_viable (A,B,output));
     element_create(A, B, output);
     platforms cur_platform = get_platforms();
@@ -26,6 +27,7 @@ void add (Tensor* A, Tensor*B, Tensor*& output){
 }
 
 void minus (Tensor* A, Tensor*B, Tensor*& output){
+    if (A == nullptr || B == nullptr) return;
     assert (element_op_viable (A,B,output));
     element_create(A, B, output);
     platforms cur_platform = get_platforms();
@@ -40,6 +42,7 @@ void minus (Tensor* A, Tensor*B, Tensor*& output){
 }
 
 void mul (Tensor* A, Tensor*B, Tensor*& output){
+    if (A == nullptr || B == nullptr) return;
     assert (element_op_viable (A,B,output));
     element_create(A, B, output);
     platforms cur_platform = get_platforms();
@@ -54,6 +57,7 @@ void mul (Tensor* A, Tensor*B, Tensor*& output){
 }
 
 void div (Tensor* A, Tensor*B, Tensor*& output){
+    if (A == nullptr || B == nullptr) return;
     assert (element_op_viable (A,B,output));
     assert (div_viable (B));
     element_create(A, B,output);
@@ -69,6 +73,7 @@ void div (Tensor* A, Tensor*B, Tensor*& output){
 }
 
 void pow (Tensor*A, Tensor*B, Tensor*& output){
+    if (A == nullptr || B == nullptr) return;
     assert (element_op_viable (A,B,output));
     element_create(A, B, output);
     platforms cur_platform = get_platforms();
@@ -83,6 +88,7 @@ void pow (Tensor*A, Tensor*B, Tensor*& output){
 }
 
 void log (Tensor*A, Tensor*B, Tensor*& output){
+    if (A == nullptr || B == nullptr) return;
     assert (element_op_viable (A,B,output));
     assert (log_viable(A, B));
     element_create(A, B, output);
@@ -98,13 +104,21 @@ void log (Tensor*A, Tensor*B, Tensor*& output){
 }
 
 void reduce_sum (Tensor* A, std::vector<int> target_shape, Tensor*& output){
+    if (A == nullptr) return;
     assert (target_shape.size() <= A->shape.size());
     int size_diff = A->shape.size() - target_shape.size();
     for (int i = 0; i < target_shape.size(); ++i){
         assert (target_shape[i] <= A->shape[i+ size_diff] && target_shape[i] >= 0);
     }
 
+
+
+
     assert (A != output);
+
+
+
+
     output = new Tensor (target_shape);
 
     platforms cur_platform = get_platforms();
@@ -119,6 +133,7 @@ void reduce_sum (Tensor* A, std::vector<int> target_shape, Tensor*& output){
 }
 
 void compare (Tensor*A, Tensor*B, Tensor*& output){
+    if (A == nullptr || B == nullptr) return;
     assert (element_op_viable (A,B,output));
     element_create(A, B, output);
     platforms cur_platform = get_platforms();
@@ -134,6 +149,7 @@ void compare (Tensor*A, Tensor*B, Tensor*& output){
 
 
 void max (Tensor* A, Tensor* B, Tensor*& output){
+    if (A == nullptr || B == nullptr) return;
     assert (element_op_viable (A,B,output));
     element_create(A, B, output);
     platforms cur_platform = get_platforms();
@@ -149,6 +165,7 @@ void max (Tensor* A, Tensor* B, Tensor*& output){
 
 
 void min (Tensor* A, Tensor* B, Tensor*& output){
+    if (A == nullptr || B == nullptr) return;
     assert (element_op_viable (A,B,output));
     element_create(A, B, output);
     platforms cur_platform = get_platforms();
@@ -165,7 +182,7 @@ void min (Tensor* A, Tensor* B, Tensor*& output){
 //unoptimized operations
 
 void matmul (Tensor* A, Tensor*B, Tensor*& output){
-
+    if (A == nullptr || B == nullptr) return;
     assert (matmul_viable (A,B));
     assert (A != output && B != output);
 
@@ -223,23 +240,31 @@ bool appro_equal (float a, float b, float episolon){
 }
 
 bool element_op_viable(Tensor*A, Tensor*B, Tensor* output){
-
-
     std::vector<int> A_padded = A->shape;
     std::vector<int> B_padded = B->shape;
     A_padded.insert(A_padded.begin(), std::max(0,static_cast<int>(B_padded.size() - A_padded.size())), 1);
     B_padded.insert(B_padded.begin(), std::max(0,static_cast<int>(A_padded.size() - B_padded.size())),1);
     for (int i = 0; i < A_padded.size(); ++i){
         if (A_padded[i] != B_padded[i] && A_padded[i] != 1 && B_padded[i] != 1){
+
+            std::cout<<"A: "<<A_padded[i]<<"B: "<<B_padded[i]<<std::endl;
+
             return false;
         }
     }
 
     //does not allow in place operations at the same time as lazy broadcasting
     if (A == output || B == output){
-        if (A->shape.size() != B->shape.size()) return false;
-        for (int i = 0; i < A->shape.size(); ++i){
-            if (A->shape[i] != B->shape[i]) return false;
+        for (int i = 0; i < A_padded.size(); ++i){
+            if (A_padded[i] != B_padded[i]){
+
+                std::cout<<"A: "<<Tensor::vec_str(A_padded);
+                std::cout<<"B: "<<Tensor::vec_str(B_padded);
+                A->print();
+                B->print();
+
+                return false;
+            }
         }
     } 
     return true;    

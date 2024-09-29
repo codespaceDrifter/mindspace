@@ -13,6 +13,8 @@
 #include <cmath>
 #include <set>
 #include <fstream>
+#include <cstdio>
+#include <queue>
 
 
 enum class Operation{
@@ -122,7 +124,7 @@ void unsqueeze_ (int dim);
 //backprop and intermediate deletion
 void init_grad ();
 void topo_sort (std::set<Tensor*>& visited, std::vector<Tensor*>& sorted);
-void backward (bool delete_intermediate = true);
+void backward_model (bool delete_intermediate = true);
 
 //operations
 Tensor* add (Tensor* other);
@@ -202,6 +204,11 @@ Tensor* compare (std::unique_ptr<Tensor>& other) {return this->compare(other.get
 Tensor* max (std::unique_ptr<Tensor>& other) {return this->max(other.get());};
 Tensor* min (std::unique_ptr<Tensor>& other) {return this->min(other.get());};
 Tensor* matmul (std::unique_ptr<Tensor>& other) {return this->matmul(other.get());};
+
+//saving and loading
+void save (std::ofstream &out_file);
+void load (std::ifstream &in_file);
+int ID;
 };
 
 #endif //TENSOR_HPP

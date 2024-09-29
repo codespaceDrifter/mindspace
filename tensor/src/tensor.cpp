@@ -11,6 +11,7 @@ Tensor::Tensor (std::vector<int> shape, bool requires_grad){
     this->requires_grad = requires_grad;
     this->grad = nullptr;
     this->operation = Operation::None;
+    this-> ID = -1;
 }
 
 Tensor::~Tensor (){
@@ -53,6 +54,7 @@ void Tensor::compute_stride (){
 }
 
 void Tensor::compute_lazy_stride (){
+    this->lazy_stride.clear();
     for (int i = 0; i < this->shape.size(); ++i){
         if (this->shape[i] == 1){
             this->lazy_stride.push_back(0);
@@ -235,11 +237,12 @@ std::string Tensor::to_string(){
 
 std::string Tensor::vec_str(std::vector<int> vec){
     std::string result;
+    result += "(";
     for (int i = 0; i < vec.size(); ++i){
         result += std::to_string(vec[i]);
         if (i != vec.size()-1) result += ", ";
     }
-    result += '\n';
+    result += ")";
     return result;
 }
 
@@ -313,13 +316,11 @@ std::unique_ptr<Tensor> Tensor::slice(std::vector<std::vector<int>> slices){
             int second = slices[i][1];
             assert (first >= 0 && second <= this->shape[i]);
             result->shape[i] = second - first;
-            if (result->shape[i] == 1) result->lazy_stride[i] = 0;
             result->offset[i] += first;
         }
     }
-
-
     result->compute_shape_size();
+    result->compute_lazy_stride();
     return result;
 }
 
@@ -344,9 +345,9 @@ std::unique_ptr<Tensor> Tensor::squeeze(int dim){
     if (result->shape[dim] == 1){
         result->shape.erase(result->shape.begin() + dim);
         result->stride.erase(result->stride.begin() + dim);
-        result->lazy_stride.erase(result->lazy_stride.begin() + dim);
         result->offset.erase(result->offset.begin() + dim);
     }
+    result->compute_lazy_stride();
     return result;
 }
 
@@ -363,8 +364,9 @@ std::unique_ptr<Tensor> Tensor::unsqueeze(int dim){
         correct_stride *= this->shape[i];
     }
     result->stride.insert(result->stride.begin() + dim, correct_stride);
-    result->lazy_stride.insert(result->lazy_stride.begin() + dim, 0);
     result->offset.insert(result->offset.begin() + dim, 0);
+
+    result->compute_lazy_stride();
     return result;
 }
 
@@ -416,7 +418,7 @@ void Tensor::topo_sort (std::set<Tensor*>& visited, std::vector<Tensor*>& sorted
     sorted.push_back(this);
 }
 
-void Tensor::backward (bool delete_intermediate){
+void Tensor::backward_model (bool delete_intermediate){
 
     std::set<Tensor*> visited;
     std::vector<Tensor*> sorted;
@@ -789,4 +791,36 @@ void Tensor::matmul_backprop(){
     this->accumulate_grad(grad_A, grad_B);
     delete grad_A;
     delete grad_B;
+}
+
+void Tensor::save (std::ofstream &out_file){
+    assert (this->owns_data == true);
+    if (!out_file) {
+        std::cout << "Invalid ofstream object" << std::endl;
+        return;
+    }
+    out_file.seekp(0,std::ios::end);
+    out_file.write (reinterpret_cast<const char*> (&this->ID), sizeof(this->ID));
+    int shape_size = this->shape.size();
+    out_file.write (reinterpret_cast<const char*> (&shape_size), sizeof (shape_size));
+    out_file.write (reinterpret_cast<const char*> (this->shape.data()), shape_size * sizeof (int));
+
+    out_file.write (reinterpret_cast<const char*> (&this->data_size), sizeof (this->data_size));
+    out_file.write (reinterpret_cast<const char*> (this->data), this->data_size * sizeof (float));
+}
+
+void Tensor::load (std::ifstream &in_file){
+    assert (this-> data_size == 0);
+    if (!in_file) {
+        std::cout << "Invalid ifstream object" << std::endl;
+        return;
+    }
+    in_file.read(reinterpret_cast<char*> (&this->ID), sizeof(this->ID));
+    int shape_size;
+    in_file.read (reinterpret_cast<char*> (&shape_size), sizeof (shape_size));
+    this->shape.resize(shape_size);
+    in_file.read (reinterpret_cast<char*> (this->shape.data()), shape_size * sizeof(int));
+    this->tensor_init();
+    in_file.read(reinterpret_cast<char*> (&this->data_size), sizeof(this->data_size));
+    in_file.read (reinterpret_cast<char*> (this->data), this->data_size * sizeof (float));
 }
