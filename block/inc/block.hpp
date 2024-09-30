@@ -3,6 +3,9 @@
 
 #include "tensor.hpp"
 
+#include "functional"
+#include "typeinfo"
+
 class Block {
 public:
 
@@ -21,13 +24,7 @@ std::vector<Block*> sub_blocks;
 bool training = true; 
 
 //save and load
-virtual Block* factory_create () = 0;
 virtual void init_members() = 0;
-
-
-static std::map<std::string, Block*> block_types;
-
-void register_block();
 
 std::vector<Block*> get_all_blocks();
 std::vector<Tensor*> get_all_tensors();
@@ -39,11 +36,27 @@ static Block* load (std::ifstream &in_file);
 void save_model (std::string path = "bin/model.bin");
 static Block* load_model (std::string path = "bin/model.bin");
 
-std::string type;
-
 int ID;
 std::vector<int> parameters_ID;
 std::vector<int> sub_blocks_ID;
+
+
+//registering
+static std::map<std::string, std::function<Block*()>> block_types;
+
+template<typename DerivedBlock>
+void register_block(){
+    if (Block::block_types.find(this->type) == Block::block_types.end()){
+        Block::block_types[this->type] = []() -> Block* {return new DerivedBlock();};
+    }
+}
+
+static Block* create_custom(std::string name);
+
+std::string type;
+};
+
+#endif
 
 /*
 save load file format: (all info of a block should be stored in its code, subblocks, and tensors. additional member variables are not saved)
@@ -73,8 +86,3 @@ read in the total number of blocks and tensors (two ints). create "all blocks" v
 do the same for tensors. except can create a vector of empty tensors. and call load on each one.
 call ID to member on all the blocks
 */
-
-
-};
-
-#endif

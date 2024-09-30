@@ -3,7 +3,7 @@
 
 FFWBlock::FFWBlock(int input, int output, float dropout){
     this->type = "FFW_BLOCK";
-    this->register_block();
+    this->register_block<FFWBlock>();
 
     this->dense_layer = new DenseLayer(input, output);
     this->relu_layer = new ReluLayer();
@@ -23,10 +23,6 @@ Tensor* FFWBlock::forward(Tensor* input){
         delete B;
     }
     return result;
-}
-
-Block* FFWBlock::factory_create () {
-    return new FFWBlock (1,1,0.1);
 }
 
 void FFWBlock::init_members() {

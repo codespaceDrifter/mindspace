@@ -2,7 +2,7 @@
 
 DenseLayer::DenseLayer(int input, int output){
     this->type = "DENSE_LAYER";
-    this->register_block();
+    this->register_block<DenseLayer>();
 
     this->weight = new Tensor (input, output);
     this->bias = new Tensor (1,output);
@@ -17,9 +17,6 @@ Tensor* DenseLayer::forward(Tensor* input) {
     return result;
 }
 
-Block* DenseLayer::factory_create (){
-    return new DenseLayer (1,1);
-}
 
 void DenseLayer::init_members(){
     assert (this->parameters.size() == 2);

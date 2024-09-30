@@ -2,7 +2,7 @@
 
 ReluLayer::ReluLayer(){
     this->type = "RELU_LAYER";
-    this->register_block();
+    this->register_block<ReluLayer> ();
 
     this->zero = Tensor::make_a_num(0);
     this->parameters.push_back (this->zero);
@@ -12,10 +12,6 @@ ReluLayer::ReluLayer(){
 Tensor* ReluLayer::forward(Tensor* input) {
     Tensor* result = input->max(this->zero);
     return result;
-}
-
-Block* ReluLayer::factory_create (){
-    return new ReluLayer();
 }
 
 

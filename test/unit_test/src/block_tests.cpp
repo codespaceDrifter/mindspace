@@ -7,6 +7,7 @@ void BlockTest::run_tests(){
     this->dropout_test();
     this->ffw_test();
     this->save_load_test();
+    this->embedding_test();
 
     std::cout<< "BLOCK TESTS: " << bool_to_str(all_passed);
 }
@@ -121,4 +122,27 @@ void BlockTest::save_load_test(){
 
     this->check_all_passed(success);
     std::cout<<"Save Load Test: "<<bool_to_str(success)<<std::endl;
+}
+
+void BlockTest::embedding_test(){
+    bool success = true;
+
+    Tensor* input = new Tensor (2,2);
+    Block* embed = new EmbeddingLayer(3,2);
+
+    input->arrange();
+    input->data[3] = 2;
+    embed->parameters[0]->arrange();
+
+    Tensor* result = embed->forward(input);
+
+    check (all_equal (result->shape, {2,2,2}), success);
+    check (all_equal (result, {0,1,2,3,4,5,4,5}), success);
+
+    delete input;
+    delete result;
+    embed->delete_model();
+
+    this->check_all_passed(success);
+    std::cout<<"Embedding Test: "<<bool_to_str(success)<<std::endl;
 }

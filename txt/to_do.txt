@@ -1,9 +1,6 @@
-dont know what is wrong with deep_equal idx error
 
-1: transformer blocks, tests for blocks, save load: THURSDAY
-
-the rest: FRIDAY, SATURDAY, SUNDAY
-
+0: transformer blocks, tests for blocks, save load. call the transofrmer "transformer_model.hpp"
+1: dataloader and optimizer (standard and adam)
 2: CUDA tutorial 
 3: CUDA tensor ops
 
@@ -12,27 +9,3 @@ the rest: FRIDAY, SATURDAY, SUNDAY
 unrelated:
 make a razor extension the underclocks cpu and sets settings to save power
 
-
-MODEL SAVE LOAD: 
-blocks save structure:
-Block ID
-block type size
-block type
-Sub Block ID Size
-Sub Block ID list
-Tensor Id Size
-Tensor ID list
-
-tensor save structure: (only save tensors that do NOT have a view)
-tensor ID
-data size
-data
-shape size
-shape
-
-
-ORDER:
-blocks: BFS
-
-
-Block A contains B, C. B contains D.

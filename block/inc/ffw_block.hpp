@@ -10,10 +10,9 @@
 class FFWBlock : public Block{
 public:
 
-FFWBlock(int input, int output, float dropout);
+FFWBlock(int input = 0, int output = 0, float dropout = 0.1);
 
 Tensor* forward(Tensor* input) override;
-Block* factory_create () override;
 void init_members() override;
 
 Block* dense_layer;

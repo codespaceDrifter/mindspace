@@ -7,6 +7,7 @@
 #include "dropout_layer.hpp"
 #include "ffw_block.hpp"
 #include "relu_layer.hpp"
+#include "embedding_layer.hpp"
 
 
 

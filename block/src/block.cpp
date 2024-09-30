@@ -1,5 +1,6 @@
 #include "block.hpp"
 
+std::map<std::string, std::function<Block*()>> Block::block_types;
 
 Block::~Block(){
     for (Tensor* tensor : this->parameters){
@@ -40,15 +41,13 @@ void Block::delete_model(){
 }
 
 
-std::map<std::string, Block*> Block::block_types;
 
-void Block::register_block(){
-    if (Block::block_types.find (this->type) == Block::block_types.end()){
-        Block::block_types[this->type] = nullptr;
-        Block::block_types[this->type] = this->factory_create();
-    }
+
+Block* Block::create_custom(std::string name){
+    std::map<std::string, std::function<Block*()>>::iterator it = block_types.find(name);
+    assert (it != block_types.end());
+    return it->second();
 }
-
 
 
 std::vector<Block*> Block::get_all_blocks(){
@@ -164,7 +163,7 @@ Block* Block::load (std::ifstream &in_file){
     type.resize(type_size);
     in_file.read (reinterpret_cast<char*> (&type[0]), type_size);
 
-    Block * result = Block::block_types[type]->factory_create();
+    Block * result = Block::create_custom(type);
     result->ID = ID;
     int sub_blocks_ID_size;
     in_file.read (reinterpret_cast<char*> (&sub_blocks_ID_size), sizeof(sub_blocks_ID_size));

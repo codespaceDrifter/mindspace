@@ -10,7 +10,6 @@ public:
 DropoutLayer (float percent = 0.1);
 
 Tensor* forward(Tensor* input) override;
-Block* factory_create () override;
 void init_members() override;
 
 Tensor* percent;

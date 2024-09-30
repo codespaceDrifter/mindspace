@@ -636,16 +636,19 @@ void Tensor::accumulate_grad (Tensor* grad_A, Tensor* grad_B){
     Tensor* operand_A = this->operands[0];
     Tensor* operand_B = this->operands[1];
 
-    Tensor* reduced_grad_A = nullptr;
-    Tensor* reduced_grad_B = nullptr;
-    Op::reduce_sum(grad_A, operand_A->shape, reduced_grad_A);
-    Op::reduce_sum(grad_B, operand_B->shape, reduced_grad_B);
+    if (operand_A->requires_grad == true){
+        Tensor* reduced_grad_A = nullptr;
+        Op::reduce_sum(grad_A, operand_A->shape, reduced_grad_A);
+        Op::add(operand_A->grad, reduced_grad_A, operand_A->grad);
+        delete reduced_grad_A;
+    }
 
-    Op::add(operand_A->grad, reduced_grad_A, operand_A->grad);
-    Op::add(operand_B->grad, reduced_grad_B, operand_B->grad);
-
-    delete reduced_grad_A;
-    delete reduced_grad_B;
+    if (operand_B->requires_grad == true){
+        Tensor* reduced_grad_B = nullptr;
+        Op::reduce_sum(grad_B, operand_B->shape, reduced_grad_B);
+        Op::add(operand_B->grad, reduced_grad_B, operand_B->grad);
+        delete reduced_grad_B;
+    }
 }
 
 
@@ -658,7 +661,9 @@ void Tensor::add_backprop(){
 void Tensor::minus_backprop(){
     Tensor* grad_A = this->grad;
     Tensor* grad_B = nullptr;
-    Op::mul (this->grad, -1, grad_B);
+    if (this->operands[1]->requires_grad == true){
+        Op::mul (this->grad, -1, grad_B);
+    }
     this->accumulate_grad(grad_A, grad_B);
     delete grad_B;
 }
@@ -669,9 +674,12 @@ void Tensor::mul_backprop(){
 
     Tensor* grad_A = nullptr;
     Tensor* grad_B = nullptr;
-
-    Op::mul(this->grad, operand_B, grad_A);
-    Op::mul(this->grad, operand_A, grad_B);
+    if (operand_A->requires_grad == true){
+        Op::mul(this->grad, operand_B, grad_A);
+    }
+    if (operand_B->requires_grad == true){
+        Op::mul(this->grad, operand_A, grad_B);
+    }
 
     this->accumulate_grad(grad_A, grad_B);
     delete grad_A;
@@ -685,18 +693,22 @@ void Tensor::div_backprop(){
     Tensor* grad_A = nullptr;
     Tensor* grad_B = nullptr;
 
-    Op::div (this->grad, operand_B, grad_A);
+    if (operand_A -> requires_grad == true){
+        Op::div (this->grad, operand_B, grad_A);
+    }
 
-    Tensor* b_squared = nullptr;
-    Tensor* neg_a = nullptr;
-    Tensor* neg_a_div_b_squared = nullptr;
-    Op::pow (operand_B, 2, b_squared);
-    Op::mul (operand_A,-1 , neg_a);
-    Op::div (neg_a, b_squared, neg_a_div_b_squared);
-    Op::mul (this->grad, neg_a_div_b_squared, grad_B);
-    delete b_squared;
-    delete neg_a;
-    delete neg_a_div_b_squared;
+    if (operand_B -> requires_grad == true){
+        Tensor* b_squared = nullptr;
+        Tensor* neg_a = nullptr;
+        Tensor* neg_a_div_b_squared = nullptr;
+        Op::pow (operand_B, 2, b_squared);
+        Op::mul (operand_A,-1 , neg_a);
+        Op::div (neg_a, b_squared, neg_a_div_b_squared);
+        Op::mul (this->grad, neg_a_div_b_squared, grad_B);
+        delete b_squared;
+        delete neg_a;
+        delete neg_a_div_b_squared;
+    }
 
     this->accumulate_grad(grad_A, grad_B);
     delete grad_A;
@@ -710,22 +722,26 @@ void Tensor::pow_backprop(){
     Tensor* grad_A = nullptr;
     Tensor* grad_B = nullptr;
 
-    Tensor* B_minus_one = nullptr;
-    Tensor* A_pow_B_minus_one = nullptr;
-    Op::minus (operand_B, 1, B_minus_one);
-    Op::pow (operand_A, B_minus_one, A_pow_B_minus_one);
-    Op::mul (operand_B, A_pow_B_minus_one, grad_A);
-    delete B_minus_one;
-    delete A_pow_B_minus_one;
+    if (operand_A->requires_grad == true){
+        Tensor* B_minus_one = nullptr;
+        Tensor* A_pow_B_minus_one = nullptr;
+        Op::minus (operand_B, 1, B_minus_one);
+        Op::pow (operand_A, B_minus_one, A_pow_B_minus_one);
+        Op::mul (operand_B, A_pow_B_minus_one, grad_A);
+        delete B_minus_one;
+        delete A_pow_B_minus_one;
+    }
 
-    Tensor* A_pow_B = nullptr;
-    Tensor* ln_A = nullptr;
-    Op::pow(operand_A, operand_B, A_pow_B);
-    float e = std::exp(1.0f);
-    Op::log(operand_A, e, ln_A);
-    Op::mul(A_pow_B, ln_A, grad_B);
-    delete A_pow_B;
-    delete ln_A;
+    if (operand_B->requires_grad == true){
+        Tensor* A_pow_B = nullptr;
+        Tensor* ln_A = nullptr;
+        Op::pow(operand_A, operand_B, A_pow_B);
+        float e = std::exp(1.0f);
+        Op::log(operand_A, e, ln_A);
+        Op::mul(A_pow_B, ln_A, grad_B);
+        delete A_pow_B;
+        delete ln_A;
+    }
 
     this->accumulate_grad(grad_A, grad_B);
     delete grad_A;
@@ -734,9 +750,11 @@ void Tensor::pow_backprop(){
 
 void Tensor::reduce_sum_backprop(){
     Tensor* operand_A = this->operands[0];
-    Tensor* broadcasted_this_grad = this->grad->deep_broadcast(operand_A->grad->shape);
-    Op::add(operand_A->grad, broadcasted_this_grad, operand_A->grad);
-    delete broadcasted_this_grad;
+    if (operand_A->requires_grad == true){
+        Tensor* broadcasted_this_grad = this->grad->deep_broadcast(operand_A->grad->shape);
+        Op::add(operand_A->grad, broadcasted_this_grad, operand_A->grad);
+        delete broadcasted_this_grad;
+    }
 }
 
 void Tensor::max_backprop(){
@@ -745,13 +763,20 @@ void Tensor::max_backprop(){
 
     Tensor* A_comp_B = nullptr;
     Tensor* B_comp_A = nullptr;
-    Op::compare(operand_A, operand_B, A_comp_B);
-    Op::minus (1, A_comp_B, B_comp_A);
+    if (operand_A->requires_grad == true || operand_B->requires_grad == true){
+        Op::compare(operand_A, operand_B, A_comp_B);
+        Op::minus (1, A_comp_B, B_comp_A);
+    }
 
     Tensor* grad_A = nullptr;
     Tensor* grad_B = nullptr;
-    Op::mul (this->grad, A_comp_B, grad_A);
-    Op::mul (this->grad, B_comp_A, grad_B);
+    if (operand_A->requires_grad == true){
+        Op::mul (this->grad, A_comp_B, grad_A);
+    }
+    if (operand_B->requires_grad == true){
+        Op::mul (this->grad, B_comp_A, grad_B);
+    }
+
     delete A_comp_B;
     delete B_comp_A;
 
@@ -766,13 +791,20 @@ void Tensor::min_backprop(){
 
     Tensor* A_comp_B_reversed = nullptr;
     Tensor* B_comp_A_reversed = nullptr;
-    Op::compare(operand_B, operand_A, A_comp_B_reversed);
-    Op::minus (1, A_comp_B_reversed, B_comp_A_reversed);
+    if (operand_A->requires_grad == true || operand_B->requires_grad == true){
+        Op::compare(operand_B, operand_A, A_comp_B_reversed);
+        Op::minus (1, A_comp_B_reversed, B_comp_A_reversed);
+    }
 
     Tensor* grad_A = nullptr;
     Tensor* grad_B = nullptr;
-    Op::mul (this->grad, A_comp_B_reversed, grad_A);
-    Op::mul (this->grad, B_comp_A_reversed, grad_B);
+    if (operand_A->requires_grad == true){
+        Op::mul (this->grad, A_comp_B_reversed, grad_A);
+    }
+    if (operand_B->requires_grad == true){
+        Op::mul (this->grad, B_comp_A_reversed, grad_B);
+    }
+
     delete A_comp_B_reversed;
     delete B_comp_A_reversed;
 
@@ -788,8 +820,12 @@ void Tensor::matmul_backprop(){
     Tensor* grad_A = nullptr;
     Tensor* grad_B = nullptr;
 
-    Op::matmul (this->grad, operand_B->transpose().get(), grad_A);
-    Op::matmul (operand_A->transpose().get(), this->grad, grad_B);
+    if (operand_A->requires_grad == true){
+        Op::matmul (this->grad, operand_B->transpose().get(), grad_A);
+    }
+    if (operand_B->requires_grad == true){
+        Op::matmul (operand_A->transpose().get(), this->grad, grad_B);
+    }
 
     this->accumulate_grad(grad_A, grad_B);
     delete grad_A;

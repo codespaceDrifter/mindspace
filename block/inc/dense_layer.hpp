@@ -8,10 +8,9 @@ class DenseLayer : public Block{
 public:
 
 // input is number of weights, output is number of neurons
-DenseLayer(int input, int output);
+DenseLayer(int input = 0, int output = 0);
 
 Tensor* forward(Tensor* input) override;
-Block* factory_create () override;
 void init_members() override;
 
 Tensor* weight;

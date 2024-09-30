@@ -1,11 +1,9 @@
 #include "dropout_layer.hpp"
 
 DropoutLayer::DropoutLayer(float percent){
-
     assert (percent >= 0 && percent <= 1);
-
     this->type = "DROPOUT_LAYER";
-    this->register_block();
+    this->register_block<DropoutLayer>();
 
     this->percent = Tensor::make_a_num(percent);
     this->parameters.push_back(this->percent);
@@ -21,10 +19,6 @@ Tensor* DropoutLayer::forward(Tensor* input){
     delete rand;
     Tensor* result = input->mul (mask);
     return result;
-}
-
-Block* DropoutLayer::factory_create (){
-    return new DropoutLayer();
 }
 
 void DropoutLayer::init_members() {
