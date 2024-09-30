@@ -1,12 +1,10 @@
-#include "operations.hpp"
-#include "tensor.hpp"
 #include "all_tests.hpp"
-#include "fstream"
+#include "tensor_bench.hpp"
 
 int main (){
 
-
-    run_all_tests();
-
+    add_latency_bench(10'000);
+    idx_latency_bench(10'000);
+    float_array_add_latency(10'000);
     return 0;
 }

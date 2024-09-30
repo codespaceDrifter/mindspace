@@ -18,6 +18,7 @@ set (HEADERS
   ${PROJECT_ROOT_DIR}/tensor/inc
   ${PROJECT_ROOT_DIR}/block/inc
   ${PROJECT_ROOT_DIR}/test/unit_test/inc
+  ${PROJECT_ROOT_DIR}/test/benchmark/inc
 )
 include_directories(${HEADERS})
 
@@ -26,6 +27,7 @@ file (GLOB_RECURSE CPU_ENGINE_SRC ${PROJECT_ROOT_DIR}/engine/cpu/*.cpp)
 file (GLOB_RECURSE CUDA_ENGINE_SRC ${PROJECT_ROOT_DIR}/engine/cuda/*.cpp)
 file (GLOB_RECURSE BLOCK_SRC ${PROJECT_ROOT_DIR}/block/src/*.cpp)
 file (GLOB_RECURSE UNIT_TEST_SRC ${PROJECT_ROOT_DIR}/test/unit_test/src/*.cpp)
+file (GLOB_RECURSE BENCHMARK_SRC ${PROJECT_ROOT_DIR}/test/benchmark/src/*.cpp)
 
 
 set(SOURCES
@@ -35,6 +37,7 @@ set(SOURCES
   ${CPU_ENGINE_SRC}
   ${CUDA_ENGINE_SRC}
   ${UNIT_TEST_SRC}
+  ${BENCHMARK_SRC}
 )
 
 add_executable(main ${SOURCES})
