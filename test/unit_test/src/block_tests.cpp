@@ -8,6 +8,7 @@ void BlockTest::run_tests(){
     this->ffw_test();
     this->save_load_test();
     this->embedding_test();
+    this->pos_embed_test();
 
     std::cout<< "BLOCK TESTS: " << bool_to_str(all_passed);
 }
@@ -145,4 +146,22 @@ void BlockTest::embedding_test(){
 
     this->check_all_passed(success);
     std::cout<<"Embedding Test: "<<bool_to_str(success)<<std::endl;
+}
+
+void BlockTest::pos_embed_test(){
+    bool success = true;
+
+    Tensor* input = new Tensor (3,4);
+    Block* pos_embed = new PosEmbedLayer(3,4);
+    Tensor* result = pos_embed->forward(input);
+
+    check (all_equal (result->shape, {3,4}), success);
+    check (all_equal (result, {0,1,0,1,0.841471, 0.540302, 0.099833, 0.995004,0.909297, -0.416147, 0.198669, 0.980067 }),success);
+
+    delete input;
+    delete result;
+    pos_embed->delete_model();
+
+    this->check_all_passed(success);
+    std::cout<<"Pos Embed Test: "<<bool_to_str(success)<<std::endl;
 }

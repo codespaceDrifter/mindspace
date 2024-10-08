@@ -420,6 +420,21 @@ void Tensor::topo_sort (std::set<Tensor*>& visited, std::vector<Tensor*>& sorted
     sorted.push_back(this);
 }
 
+void Tensor::delete_intermediates(){
+    std::set<Tensor*> visited;
+    std::vector<Tensor*> sorted;
+    this->topo_sort(visited, sorted);
+
+    std::vector<Tensor*> reverse_sorted = sorted;
+    std::reverse (reverse_sorted.begin(), reverse_sorted.end());
+
+    for (int i = 0; i < reverse_sorted.size(); ++i){
+        if (reverse_sorted[i]->operands.size() > 0){
+            delete reverse_sorted[i];
+        }
+    }
+}
+
 void Tensor::backward_model (bool delete_intermediate){
 
     std::set<Tensor*> visited;
@@ -433,7 +448,6 @@ void Tensor::backward_model (bool delete_intermediate){
     this->init_grad();
     this->grad->fill(1);
 
-
     for (int i = 0; i < sorted.size() - 1; ++i){
         sorted[i]->init_grad();
     }
@@ -444,11 +458,7 @@ void Tensor::backward_model (bool delete_intermediate){
     }
 
     if (delete_intermediate == true){
-        for (int i = 0; i < reverse_sorted.size(); ++i){
-            if (reverse_sorted[i]->operands.size() > 0){
-                delete reverse_sorted[i];
-            }
-        }
+        this->delete_intermediates();
     }
 }
 

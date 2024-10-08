@@ -250,7 +250,6 @@ bool element_op_viable(Tensor*A, Tensor*B, Tensor* output){
     if (A == output || B == output){
         for (int i = 0; i < A_padded.size(); ++i){
             if (A_padded[i] != B_padded[i]){
-
                 return false;
             }
         }

@@ -8,6 +8,7 @@
 #include "ffw_block.hpp"
 #include "relu_layer.hpp"
 #include "embedding_layer.hpp"
+#include "pos_embed_layer.hpp"
 
 
 

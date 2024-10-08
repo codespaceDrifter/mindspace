@@ -20,6 +20,8 @@ void ffw_test();
 void save_load_test();
 
 void embedding_test();
+
+void pos_embed_test();
 };
 
 

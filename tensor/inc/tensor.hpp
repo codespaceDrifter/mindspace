@@ -67,8 +67,6 @@ static std::string vec_str(std::vector<int> vec);
 
 
 
-
-
 inline __attribute__((always_inline)) static std::vector<int> shape_to_indices(const std::vector<int>& shape, int idx){
     std::vector<int> result;
     int cur_group = idx;
@@ -124,6 +122,7 @@ void unsqueeze_ (int dim);
 //backprop and intermediate deletion
 void init_grad ();
 void topo_sort (std::set<Tensor*>& visited, std::vector<Tensor*>& sorted);
+void delete_intermediates();
 void backward_model (bool delete_intermediate = true);
 
 //operations
@@ -166,8 +165,6 @@ void matmul_backprop();
 
 
 //parameters
-
-
 float* data;
 int data_size;
 

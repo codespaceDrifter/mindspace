@@ -13,7 +13,6 @@ DenseLayer::DenseLayer(int input, int output){
 Tensor* DenseLayer::forward(Tensor* input) {
     Tensor * A = input -> matmul (this->weight);
     Tensor * result = A-> add (bias);
-    if (training == false) delete A;
     return result;
 }
 

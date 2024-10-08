@@ -21,7 +21,6 @@ Tensor* EmbeddingLayer::forward(Tensor* input) {
 
         std::vector<int> result_indices (input_indices);
         result_indices.push_back(0);
-
         for (int j = 0; j < this->embedding->shape.back(); ++j){
             result_indices.back() = j;
             result->idx (result_indices) = this->embedding->idx(token_id, j);

@@ -18,10 +18,6 @@ Tensor* FFWBlock::forward(Tensor* input){
     Tensor * B = this->relu_layer->forward(A);
     Tensor * result = this->dropout_layer->forward(B);
 
-    if (training == false){
-        delete A;
-        delete B;
-    }
     return result;
 }
 

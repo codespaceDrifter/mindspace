@@ -8,6 +8,8 @@
 input needs to be encoded as ints from 0 to vocab_size
 
 (batch, seq_len) -> (batch, seq_len, embedding)
+
+this is slow because have to index the whole thing sequentially
 */
 
 class EmbeddingLayer: public Block {
