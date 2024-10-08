@@ -1,3 +1,10 @@
+0: in place transpose. and views. copy constructor
+1: operations: do NOT use i %. use c++ concurrent threads to launch multiple cpu_operations with different starts. as i gets large % is too expensive so its not acceptable
+2: code a custom matmul maybe. dont use transpose and mul maybe. MAYBE.
+
+
+
+
 
 0: transformer blocks, tests for blocks, save load. call the transofrmer "transformer_model.hpp"
 1: dataloader and optimizer (standard and adam)

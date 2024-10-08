@@ -13,8 +13,12 @@ platforms get_platforms(){
 
 void add (Tensor* A, Tensor*B, Tensor*& output){
     if (A == nullptr || B == nullptr) return;
+
     assert (element_op_viable (A,B,output));
     element_create(A, B, output);
+
+    //element broadcast
+
     platforms cur_platform = get_platforms();
     switch (cur_platform){
         case platforms::Cpu:
@@ -183,7 +187,7 @@ void matmul (Tensor* A, Tensor*B, Tensor*& output){
     std::unique_ptr<Tensor> A_view = A->unsqueeze(-2);
     std::unique_ptr<Tensor> B_view = B->transpose()->unsqueeze(-3);
 
-
+ 
     Tensor* C = nullptr;
     mul (A_view.get(), B_view.get(), C);
 
@@ -227,6 +231,83 @@ void element_create (Tensor*A, Tensor*B, Tensor*& output){
     output = new Tensor (output_shape);
 }
 
+//if broadcasting of one into the other's front dimension is not enough, uses memory inefficient copy element broadcasting
+
+/*
+A
+(4,3,1,4)
+
+B
+(1,3,3,1)
+
+broadcast->
+A (4,3,3,4)
+B (1,3,3,1)
+
+continuous cutoff: 1
+
+after 1: see what broadcasts into what
+
+get A shape after 1: (3,3,4)
+get B shape after 1: (3,3,1)
+max shape after 1: (3,3,4)
+A target shape : A shape before 1, plus max shape after 1: (4,3,3,4)
+B target shape : B shape before 1, plus max shape after 1: (1,3,3,4)
+
+return: 4
+*/
+
+bool broadcast_viable (Tensor* A, Tensor* B){
+
+}
+
+int element_broadcast (Tensor* A, Tensor* B){
+
+    std::vector<int> A_padded (A->shape);
+    std::vector<int> B_padded (B->shape);
+    A_padded.insert(A_padded.begin(), std::max(0,static_cast<int>(B_padded.size() - A_padded.size())),1);
+    B_padded.insert(B_padded.begin(), std::max(0,static_cast<int>(A_padded.size() - B_padded.size())),1);
+
+    bool A_into_B = false;
+    bool B_into_A = false;
+    int continuous_cutoff = 0;
+    //up until continuous cutoff (UNINCLUSIVE)
+    for (; continuous_cutoff <A_padded.size(); ++continuous_cutoff){
+        if (A_padded[continuous_cutoff] != 1 && B_padded[continuous_cutoff] != 1){
+            break;
+        }
+        if (A_padded[continuous_cutoff] == 1 && B_padded[continuous_cutoff] != 1){
+            if (B_into_A == true) break;
+            A_into_B = true;
+        }
+        if (B_padded[continuous_cutoff] == 1 && A_padded[continuous_cutoff] != 1){
+            if (A_into_B == true) break;
+            B_into_A = true;
+        }
+    }
+    //INCOMPLETE
+    //IM GONNA TEST HOW GOOD CUDA IS ON THE OTHER THING BEFORE FIXING THIS ONE
+    //BASICALLY, BROADCAST TO THE POINT WHERE YOU CAN DO A CONTINUOUS BROADCAST WITH THREADS
+
+
+/*
+A (4,1,3,4)
+B (1,3,3,1)
+
+At 0:
+B start = true;
+At 1: 
+At 2:
+At 3: 
+*/
+
+    for (i = A_padded.size(); i>= 0; --i){
+        if (A_padded[i]!= )
+    }
+
+    bool A_broadcast_B = false;
+    bool B_broadcast_A = false;
+}
 
 //viability check
 
@@ -240,19 +321,13 @@ bool element_op_viable(Tensor*A, Tensor*B, Tensor* output){
     A_padded.insert(A_padded.begin(), std::max(0,static_cast<int>(B_padded.size() - A_padded.size())), 1);
     B_padded.insert(B_padded.begin(), std::max(0,static_cast<int>(A_padded.size() - B_padded.size())),1);
     for (int i = 0; i < A_padded.size(); ++i){
-        if (A_padded[i] != B_padded[i] && A_padded[i] != 1 && B_padded[i] != 1){
-
-            return false;
-        }
+        if (A_padded[i] != B_padded[i] && A_padded[i] != 1 && B_padded[i] != 1) return false;
     }
 
     //does not allow in place operations at the same time as lazy broadcasting
     if (A == output || B == output){
         for (int i = 0; i < A_padded.size(); ++i){
-            if (A_padded[i] != B_padded[i]){
-
-                return false;
-            }
+            if (A_padded[i] != B_padded[i]) return false;
         }
     } 
     return true;    

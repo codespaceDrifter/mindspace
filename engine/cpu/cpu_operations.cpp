@@ -34,6 +34,8 @@ void div_cpu (Tensor* A, Tensor* B, Tensor* output){
     }
 }
 
+
+
 void pow_cpu (Tensor* A, Tensor* B, Tensor* output){
     for (int i = 0; i < output->shape_size; ++i){
         std::vector<int> indices = output->f_s(i);
@@ -94,4 +96,12 @@ void min_cpu (Tensor* A, Tensor* B, Tensor* output){
     }
 
 }
+
+
+//write later
+void matmul_cpu (Tensor* A, Tensor* B, Tensor* output){
+
+
+}
+
 }

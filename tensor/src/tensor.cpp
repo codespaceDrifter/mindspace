@@ -3,34 +3,36 @@
 
 
 Tensor::Tensor (std::vector<int> shape, bool requires_grad){
-    this->owns_data = true;
-    this->data = nullptr;
     this->shape = shape;
-    this->tensor_init();
-    this->viewed = nullptr;
+    this->compute_data_size();
+    this->data = nullptr;
+    this->data_init();
+    this->compute_stride();
     this->requires_grad = requires_grad;
     this->grad = nullptr;
     this->operation = Operation::None;
     this-> ID = -1;
 }
 
+
 Tensor::~Tensor (){
-    if (this->owns_data == true){
-        delete[] this->data;
-    }
-    if (this->requires_grad == true){
-        delete this->grad;
-    }
+    delete[] this->data;
+    delete this->grad;
 }
 
-void Tensor::data_init(int new_size){
-    assert (this->owns_data == true);
-    assert (new_size >= 0);
-    this->data_size = new_size;
+void Tensor::compute_data_size(){
+    int shape_size = std::min(1, static_cast<int>(this->shape.size()));
+    for (int i = 0; i < this->shape.size(); ++i){
+        shape_size *= this->shape[i];
+    }
+    this->data_size = shape_size;
+}
+
+void Tensor::data_init(){
     if (this->data != nullptr){
         delete[] this->data;
     }
-    float* new_data = new float[new_size];
+    float* new_data = new float[this->data_size];
     for (int i = 0; i < new_size; ++i){
         new_data[i] = 0;
     }
@@ -43,105 +45,13 @@ void Tensor::data_switch (float* new_data){
     this->data = new_data;
 }
 
-void Tensor::compute_stride (){
+void Tensor::compute_stride(){
     this->stride.clear();
-    this->lazy_stride.clear();
     int cur_stride = 1;
     for (int i = this->shape.size()-1 ; i >= 0; --i){
         this->stride.insert(stride.begin(), cur_stride);
         cur_stride *= this->shape[i];
     }
-}
-
-void Tensor::compute_lazy_stride (){
-    this->lazy_stride.clear();
-    for (int i = 0; i < this->shape.size(); ++i){
-        if (this->shape[i] == 1){
-            this->lazy_stride.push_back(0);
-        } else {
-            this->lazy_stride.push_back(this->stride[i]);
-        }
-    }
-}
-
-void Tensor::offset_init (){
-    this->offset.clear();
-    offset.insert(offset.begin(), this->shape.size(), 0);
-}
-
-void Tensor::compute_shape_size(){
-    int shape_size = std::min(1, static_cast<int>(this->shape.size()));
-    for (int i = 0; i < this->shape.size(); ++i){
-        shape_size *= this->shape[i];
-    }
-    this->shape_size = shape_size;
-}
-
-void Tensor::tensor_init(){
-    assert (this->owns_data == true);
-    this->compute_shape_size();
-    this->data_init(this->shape_size);
-    this->data_size = this->shape_size;
-    this->compute_stride();
-    this->compute_lazy_stride();
-    this->offset_init();
-}
-
-void Tensor::contiguous(){
-    assert (this->data_size == this->shape_size);
-    assert (this->shape.size() == this->stride.size() && this->shape.size() == this->lazy_stride.size() && this->shape.size() == this->offset.size());
-
-    //owns data
-    this->viewed = nullptr;
-    this->owns_data = true;
-
-    //data correct ordering. the old shape of tensor need to be broadcastable into the new shape.
-    float* new_data = new float [this->shape_size];
-    for (int i = 0; i < this->shape_size; ++i){
-        new_data[i] = this->idx(this->f_s(i));
-    }
-    this->data_switch(new_data);
-
-    //correct shape
-    this->compute_stride();
-    this->compute_lazy_stride();
-    this->offset_init();
-}
-
-
-void Tensor::view_other (Tensor* other){
-    assert (this->data_size == 0);
-    assert (other->data != this->data);
-    assert (this->requires_grad == other ->requires_grad);
-
-    assert (this->operands.size() == 0);
-    delete[] this->data;
-    this -> data = other -> data;
-    this -> data_size = other->data_size;
-    this -> shape = other -> shape;
-    this -> stride = other -> stride;
-    this -> lazy_stride = other->lazy_stride;
-    this -> offset = other -> offset;
-    this -> compute_shape_size();
-    this-> operands.push_back(other);
-    this -> viewed = other;
-    this -> owns_data = false;
-}
-
-
-void Tensor::deep_equal (Tensor* other){
-    Tensor* temp = new Tensor (other->shape, other->requires_grad);
-    for (int i = 0; i < other->shape_size; ++i){
-        std::vector<int> indices = temp->f_s(i);
-        temp->idx(indices) = other->idx(indices);
-    }
-
-    this->shape = other->shape;
-    this->tensor_init();
-    for (int i = 0; i < temp->data_size; ++i){
-        this->data[i] = temp->data[i];
-    }
-    delete temp;
 }
 
 Tensor* Tensor::make_a_num (float val){
@@ -161,9 +71,7 @@ void Tensor::randomize (float low, float high){
 }
 
 void Tensor::fill (float value){
-    for (int i = 0; i < this->data_size; ++i){
-        this->data[i] = value;
-    }
+    std::fill (this->data, this->data + this->data_size, value);
 }
 
 void Tensor::arrange (int start){
@@ -180,7 +88,7 @@ void Tensor::print(){
     }
     std::cout <<")"<<std::endl;
     std::cout <<"data: "<<std::endl;
-    std::cout <<this->to_string();
+    std::cout<<this->to_string();
 }
 
 std::string Tensor::to_string(){
@@ -189,14 +97,16 @@ std::string Tensor::to_string(){
     std::vector<std::string> line_vec;
     std::string temp_str;
 
-    for (int i = 0; i < this->shape_size; ++i){
-        if (this->shape[this->shape.size()-1] == 1 || i != 0 && (i+1) %(this->shape[this->shape.size()-1]) == 0){
-            temp_str += std::to_string(this->idx(this->f_s(i)));
+    int last_dim_tracker = 0
+    for (int i = 0; i < this->data_size; ++i){
+        last_dim_tracker ++;
+        if (last_dim_tracker == this->shape[this->shape.size()-1]){
+            temp_str += std::to_string(this->data[i]);
             temp_str = "[" + temp_str + "]";
             line_vec.push_back(temp_str);
             temp_str = "";
         } else {
-            temp_str = temp_str + std::to_string(this->idx(this->f_s(i))) + ", ";
+            temp_str = temp_str + std::to_string(this->data[i] + ", ");
         }
     }
 
@@ -235,66 +145,70 @@ std::string Tensor::to_string(){
     return result;
 }
 
-std::string Tensor::vec_str(std::vector<int> vec){
-    std::string result;
-    result += "(";
-    for (int i = 0; i < vec.size(); ++i){
-        result += std::to_string(vec[i]);
-        if (i != vec.size()-1) result += ", ";
+void Tensor::transpose (int dim1, int dim2){
+    if (dim1 < 0) dim1 = this->shape.size() + dim1;
+    if (dim2 < 0) dim2 = this->shape.size() + dim2;
+    assert (dim1 >= 0 && dim1 < this->shape.size());
+    assert (dim2 >= 0 && dim2 < this->shape.size());
+
+    bool* transposed = new bool [this->data_size];
+    std::fill(transposed, transposed + this->data_size, false);
+
+    std::vector<int> cur_indices;
+    int i_transposed;
+    for (int i = 0; i < this->data_size; ++i){
+        if (transposed[i] == false){
+            cur_indices = this->f_s(i);
+            std::swap (cur_indices[dim1], cur_indices[dim2]);
+            i_transposed = 0;
+            for (int j = 0; j < cur_indices.size(); ++j){
+                i_transposed += cur_indices[j] * this->stride[j];
+            }
+            std::swap (this->data[i], this->data[i_transposed]);
+            transposed[i] == true;
+            transposed[i_transposed] == true;
+        }
     }
-    result += ")";
-    return result;
+    delete transposed;
+    std::swap(this->shape[dim1], this->shape[dim2]);
+    this->calculate_stride();
 }
 
-std::unique_ptr<Tensor> Tensor::create_view(){
-    Tensor* raw_result = new Tensor({}, this->requires_grad);
-    raw_result->view_other(this);
-    std::unique_ptr<Tensor> unique_result (raw_result);
-    return unique_result;
+void Tensor::squeeze (int dim){
+    if (dim < 0) dim = this->shape.size() + dim;
+    assert (dim >= 0 && dim < this->shape.size());
+    assert (this->shape[dim] == 1);
+    std::new_shape(this->shape);
+    new_shape.erase(new_shape.begin()+dim);
+    this->shape_change(new_shape);
 }
 
+void Tensor::unsqueeze (int dim){
+    if (dim < 0) dim = this->shape.size() + dim + 1;
+    assert (dim >= 0 && dim <= this->shape.size());
+    std::new_shape(this->shape);
+    new_shape.insert(new_shape.begin() + dim, 1);
+    this->shape_change(new_shape);
 
-std::vector<int> Tensor::max_broadcast_shape (Tensor* other) const{
-    std::vector<int> this_padded = this->shape;
-    std::vector<int> other_padded = other->shape;
-    this_padded.insert(this_padded.begin(), std::max(0, static_cast<int>(other_padded.size() - this_padded.size()) ), 1);
-    other_padded.insert(other_padded.begin(), std::max(0, static_cast<int>(this_padded.size() - other_padded.size())),1);
-    std::vector<int> result;
-    for (int i = 0; i < this_padded.size(); ++i){
-        assert (this_padded[i] == 1 || other_padded[i] == 1 || this_padded[i] == other_padded[i]);
-        result.push_back(std::max(this_padded[i], other_padded[i]));
-    }
-    return result;
 }
 
-Tensor* Tensor::vertical_stack (std::vector<Tensor*> tensor_vec){
-    std::vector<int> shape_without_first (tensor_vec[0]->shape.begin()+1, tensor_vec[0]->shape.end());
-    for (int i = 1; i < tensor_vec.size(); ++i){
-        assert (tensor_vec[i]->owns_data == true);
-        std::vector<int> cur_shape_without_first (tensor_vec[i]->shape.begin()+1, tensor_vec[i]->shape.end());
-        assert (cur_shape_without_first == shape_without_first);
-    }
-    std::vector<int> result_shape (shape_without_first);
-    int total_first_dim = 0;
-    for (int i = 0; i < tensor_vec.size(); ++i){
-        total_first_dim += tensor_vec[i]->shape[0];
-    }
-    result_shape.insert (result_shape.begin(), total_first_dim);
-    Tensor* result = new Tensor(result_shape, false);
-
-    int cur_data_place = 0;
-    for (int i = 0; i < tensor_vec.size(); ++i){
-        std::copy(tensor_vec[i]->data, tensor_vec[i]->data + tensor_vec[i]->data_size, result->data + cur_data_place);
-        cur_data_place += tensor_vec[i]->data_size;
-    }
-    return result;
+void Tensor::shape_change (std::vector<int> new_shape){
+    int old_data_size = this->data_size;
+    this->shape = new_shape;
+    this->compute_data_size();
+    assert (this->data_size == old_data_size)
+    this->compute_stride();
 }
+
 
 Tensor* Tensor::deep_broadcast(std::vector<int> target_shape){
     assert (target_shape.size() >= this->shape.size());
     int dim_diff = target_shape.size() - this->shape.size();
+
+    //lazy brodcast stride
     for (int i = 0; i < this->shape.size(); ++i){
         assert (this->shape[i] == 1 || this->shape[i] == target_shape[i+dim_diff]);
+        if (this->shape[i] == 1) this->stride[i] =0;
     }
 
     Tensor* result = new Tensor (target_shape, this->requires_grad);
@@ -302,111 +216,16 @@ Tensor* Tensor::deep_broadcast(std::vector<int> target_shape){
         std::vector<int> indices = result->f_s(i);
         result->idx(indices) = this->idx(indices);
     }
+    //back to correct stride
+    this->compute_stride();
+
     return result;
-}
-
-std::unique_ptr<Tensor> Tensor::slice(std::vector<std::vector<int>> slices){
-
-    std::unique_ptr<Tensor> result = this->create_view(); 
-    assert (slices.size() == this->shape.size());
-    for (int i = 0; i < slices.size(); ++i){
-        assert (slices[i].size() == 0 || slices[i].size() == 2);
-        if (slices[i].size() == 2){
-            int first = slices[i][0];
-            int second = slices[i][1];
-            assert (first >= 0 && second <= this->shape[i]);
-            result->shape[i] = second - first;
-            result->offset[i] += first;
-        }
-    }
-    result->compute_shape_size();
-    result->compute_lazy_stride();
-    return result;
-}
-
-std::unique_ptr<Tensor> Tensor::transpose(int dim1, int dim2){
-    if (dim1 < 0) dim1 = this->shape.size() + dim1;
-    if (dim2 < 0) dim2 = this->shape.size() + dim2;
-    assert (dim1 >= 0 && dim1 < this->shape.size());
-    assert (dim2 >= 0 && dim2 < this->shape.size());
-
-    std::unique_ptr<Tensor> result = this->create_view(); 
-    std::swap(result->shape[dim1], result->shape[dim2]);
-    std::swap (result->stride[dim1], result->stride[dim2]);
-    std::swap (result->lazy_stride[dim1], result->lazy_stride[dim2]);
-    return result; 
-}
-
-std::unique_ptr<Tensor> Tensor::squeeze(int dim){
-    if (dim < 0) dim = this->shape.size() + dim;
-    assert (dim >= 0 && dim < this->shape.size());
-    assert (this->shape[dim] == 1);
-    std::unique_ptr<Tensor> result = this->create_view();
-    if (result->shape[dim] == 1){
-        result->shape.erase(result->shape.begin() + dim);
-        result->stride.erase(result->stride.begin() + dim);
-        result->offset.erase(result->offset.begin() + dim);
-    }
-    result->compute_lazy_stride();
-    return result;
-}
-
-std::unique_ptr<Tensor> Tensor::unsqueeze(int dim){
-    std::unique_ptr<Tensor> result = this->create_view();
-    if (dim < 0) dim = this->shape.size() + dim + 1;
-
-    assert (dim >= 0 && dim <= this->shape.size());
-
-    result->shape.insert(result->shape.begin() + dim, 1);
-
-    int correct_stride = 1;
-    for (int i = this->shape.size() - 1; i >= dim; --i){
-        correct_stride *= this->shape[i];
-    }
-    result->stride.insert(result->stride.begin() + dim, correct_stride);
-    result->offset.insert(result->offset.begin() + dim, 0);
-
-    result->compute_lazy_stride();
-    return result;
-}
-
-
-void Tensor::slice_ (std::vector<std::vector<int>> slices){
-    std::unique_ptr<Tensor> temp = this->slice(slices);
-    this->deep_equal(temp);
-}
-
-void Tensor::transpose_ (int dim1, int dim2){
-    std::unique_ptr<Tensor> temp = this->transpose(dim1, dim2);
-    this->deep_equal(temp);
-}
-
-void Tensor::squeeze_ (int dim){
-    std::unique_ptr<Tensor> temp = this->squeeze(dim);
-    this->deep_equal(temp);
-}
-
-void Tensor::unsqueeze_ (int dim){
-    std::unique_ptr<Tensor> temp = this->unsqueeze(dim);
-    this->deep_equal(temp);
 }
 
 void Tensor::init_grad (){
     assert (this->grad == nullptr);
-
     if (this->requires_grad == false) return;
-
-    if (this->owns_data == true){
-        this->grad = new Tensor (this->shape,false);
-    } else {
-        this->grad = new Tensor({},false);
-        this->grad->view_other(this->viewed->grad);
-        this->grad->shape = this->shape;
-        this->grad->stride = this->stride;
-        this->grad->lazy_stride = this->lazy_stride;
-        this->grad->offset = this->offset;
-        this->grad->shape_size = this->shape_size;
-    }
+    this->grad = new Tensor (this->shape,false);
 }
 
 void Tensor::topo_sort (std::set<Tensor*>& visited, std::vector<Tensor*>& sorted){
@@ -539,7 +358,44 @@ Tensor* Tensor::min (Tensor* other){
     return result;
 }
 
-std::unique_ptr<Tensor> Tensor::slice(std::initializer_list<std::initializer_list<int>> slices){
+Tensor* Tensor::matmul(Tensor* other){
+    Tensor* result = nullptr;
+    Op::matmul(this, other, result);
+
+    result->operation = Operation::Matmul;
+    result->operands.push_back(this);
+    result->operands.push_back(other);
+    return result;
+}
+
+Tensor* Tensor::slice (std::vector<std::vector<int>> slices){
+    assert (slices.size() == this->shape.size());
+
+    std::vector<int> result_shape (slices.size());
+    for (int i = 0; i < slices.size(); ++i){
+        assert (slices[i].size() == 0 || slices[i].size() == 2);
+        if (slices[i].size() == 0){
+            result_shape[i] = this->shape[i];
+        }else{
+            result_shape[i] = slices[i][1] - slices[i][0];
+        }
+    }
+    Tensor* result = new Tensor (result_shape);
+
+    for (int i = 0; i < result->data_size; ++i){
+        std::vector<int> indices = result->f_s(i);
+        for (int j = 0; j < indices.size(); ++j){
+            if slices[j].size() != 0{
+                indices[j] += slices[j][0];
+            }
+        }
+        result[i] = this->idx(indices);
+    }
+
+    return result;
+}
+
+Tensor* Tensor::slice(std::initializer_list<std::initializer_list<int>> slices){
     std::vector<std::vector<int>> slices_vec (slices.size());
     int i = 0;
     for (std::initializer_list<int> inner_list : slices) {
@@ -547,26 +403,6 @@ std::unique_ptr<Tensor> Tensor::slice(std::initializer_list<std::initializer_lis
         ++i;
     }
     return this->slice (slices_vec);
-}
-
-void Tensor::slice_ (std::initializer_list<std::initializer_list<int>> slices){
-    std::vector<std::vector<int>> slices_vec (slices.size());
-    int i = 0;
-    for (std::initializer_list<int> inner_list : slices) {
-        slices_vec[i] = std::vector<int>(inner_list);
-        ++i;
-    }
-    this->slice_ (slices_vec);
-}
-
-Tensor* Tensor::slice_r(std::initializer_list<std::initializer_list<int>> slices){
-    std::vector<std::vector<int>> slices_vec (slices.size());
-    int i = 0;
-    for (std::initializer_list<int> inner_list : slices) {
-        slices_vec[i] = std::vector<int>(inner_list);
-        ++i;
-    }
-    return this->slice_r (slices_vec);
 }
 
 Tensor* Tensor::reduce_sum(int target_dim){
@@ -577,15 +413,17 @@ Tensor* Tensor::reduce_sum(int target_dim){
     return this->reduce_sum(result_shape);
 }
 
-Tensor* Tensor::matmul(Tensor* other){
-    Tensor* result = nullptr;
-    Op::matmul(this, other, result);
 
-    result->operation = Operation::Matmul;
-    result->operands.push_back(this);
-    result->operands.push_back(other);
-    return result;
+void Tensor::copy (Tensor* target){
+    assert (this != target);
+    assert (this->requires_grad == target->requires_grad);
+    this->shape = target->shape;
+    this->stride = target->stride;
+    delete this->data
+    this->data = target->data;
+
 }
+
 
 void Tensor::add_ (Tensor* other) {Tensor* temp = this; Op::add(this, other, temp);};
 void Tensor::minus_ (Tensor* other) {Tensor* temp = this; Op::minus (this, other, temp);};

@@ -76,32 +76,38 @@ void idx_latency_bench (int tensor_size = 1000){
     std::cout<<"(3 tensors 1 indice) idx of size : "<<tensor_size<<" seconds took: "<<seconds_took<<std::endl;
 }
 
-void float_array_add_latency (int sqrt_size = 1000){
+void float_array_add_latency (int tensor_size = 1000){
 
-    int size = sqrt_size * sqrt_size;
+    Tensor* A_tensor = new Tensor (tensor_size, tensor_size);
+    Tensor* B_tensor = new Tensor (10, tensor_size);
+    Tensor* C_tensor = new Tensor (tensor_size, tensor_size);
+    A_tensor->randomize(-10,10);
+    B_tensor->randomize(-10,10);
+    C_tensor->randomize(-10,10);
 
-    float * A = new float [size];
-    float * B = new float [size];
-    float * C = new float [size];
-
-    for (int i = 0; i < size; ++i){
-        A[i] = 1.1;
-        B[i] = 2.2;
-    }
+    float * A = A_tensor->data;
+    float * B = B_tensor->data;
+    float * C = C_tensor->data;
 
     auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < size; ++i){
-        C[i] = A[i] * B[i];
+
+    int i_B = 0;
+    const int ten = B_tensor->shape[0];
+
+    for (int i = 0; i < A_tensor->shape_size; ++i){
+        if (++i_B == ten) i_B = 0;
+        //C[i] = A[i] * B[i];
     }
+
 
     auto elapsed = std::chrono::high_resolution_clock::now() - start;
     float seconds_took = std::chrono::duration_cast<std::chrono::duration<double>>(elapsed).count();
 
-    delete A;
-    delete B;
-    delete C;
+    delete A_tensor;
+    delete B_tensor;
+    delete C_tensor;
  
-    std::cout<<"float array of size: "<<size<<" seconds took: "<<seconds_took<<std::endl;
+    std::cout<<"float array in tensors of sizes: "<<tensor_size<<" Seconds took: "<<seconds_took<<std::endl;
 
 
 }
