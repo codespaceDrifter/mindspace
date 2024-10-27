@@ -9,7 +9,7 @@ public:
 
 DropoutLayer (float percent = 0.1);
 
-Tensor* forward(Tensor* input) override;
+Tensor* forward_(Tensor* input, Tensor* input2 = nullptr) override;
 void init_members() override;
 
 Tensor* percent;

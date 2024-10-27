@@ -15,10 +15,12 @@
 #include <fstream>
 #include <cstdio>
 #include <queue>
+#include <exception>
 
 
 enum class Operation{
     None,
+    Contigious,
     Add,
     Minus,
     Mul,
@@ -29,6 +31,7 @@ enum class Operation{
     Min,
     Matmul
 };
+
 
 class Tensor{
 
@@ -49,21 +52,13 @@ void offset_init();
 void compute_shape_size();
 
 void tensor_init();
-void contiguous();
-
-void view_other (Tensor* other);
 void deep_equal (Tensor* other);
 
 static Tensor* make_a_num (float val);
 
 void randomize(float low = -0.5, float high = 0.5);
 void fill(float value);
-void arrange(int start = 0);
-
-void print();
-std::string to_string();
-static void ASDF(){std::cout<<"ASDF"<<std::endl;};
-static std::string vec_str(std::vector<int> vec);
+void arrange(float start = 0, float step = 1);
 
 
 
@@ -100,24 +95,25 @@ inline __attribute__((always_inline)) float& idx (Indices... indices){
 }
 
 
-std::unique_ptr<Tensor> create_view();
 std::vector<int> max_broadcast_shape (Tensor* other) const;
 static Tensor* vertical_stack (std::vector<Tensor*> tensor_vec);
 Tensor* deep_broadcast(std::vector<int> target_shape);
 
 
 //shape changes and views. acts on both this and grad tensor. does not own data
-std::unique_ptr<Tensor> slice(std::vector<std::vector<int>> slices);
-std::unique_ptr<Tensor> transpose(int dim1 = -1, int dim2 = -2);
-std::unique_ptr<Tensor> squeeze(int dim);
-std::unique_ptr<Tensor> unsqueeze(int dim);
+Tensor* create_view();
+Tensor* slice(std::vector<std::vector<int>> slices);
+Tensor* slice(std::initializer_list<std::initializer_list<int>> slices);
+Tensor* transpose(int dim1 = -1, int dim2 = -2);
+Tensor* squeeze(int dim);
+Tensor* unsqueeze(int dim);
+Tensor* shape_view (std::vector<int> target_shape);
+Tensor* contiguous();
 
-
-//in place shape changes and views.
-void slice_ (std::vector<std::vector<int>> slices);
-void transpose_ (int dim1 = -1, int dim2 = -2);
+//in place
 void squeeze_ (int dim);
 void unsqueeze_ (int dim);
+
 
 //backprop and intermediate deletion
 void init_grad ();
@@ -126,6 +122,8 @@ void delete_intermediates();
 void backward_model (bool delete_intermediate = true);
 
 //operations
+void graph_construction (Tensor* other, Tensor* result);
+
 Tensor* add (Tensor* other);
 Tensor* minus (Tensor* other);
 Tensor* mul (Tensor* other);
@@ -144,15 +142,13 @@ void mul_ (Tensor* other);
 void div_ (Tensor* other);
 
 //operations other forms
-std::unique_ptr<Tensor> slice(std::initializer_list<std::initializer_list<int>> slices);
-void slice_ (std::initializer_list<std::initializer_list<int>> slices);
-Tensor* slice_r(std::initializer_list<std::initializer_list<int>> slices);
 Tensor* reduce_sum (int target_dim);
 
 //backprop operations
 void backprop ();
 void accumulate_grad(Tensor* grad_A, Tensor* grad_B);
 
+void contigous_backprop();
 void add_backprop();
 void minus_backprop();
 void mul_backprop();
@@ -179,33 +175,48 @@ Tensor* grad;
 
 Operation operation;
 std::vector<Tensor*> operands;
+std::vector<Tensor*> outputs;
 
 bool owns_data;
 Tensor* viewed;
 
-//raw ptr versions
-Tensor* slice_r(std::vector<std::vector<int>> slices) {std::unique_ptr<Tensor> temp = this->slice(slices); return temp.release();};
-Tensor* transpose_r(int dim1 = -1, int dim2 = -2) {std::unique_ptr<Tensor> temp = this->transpose(dim1, dim2); return temp.release();};
-Tensor* squeeze_r(int dim) {std::unique_ptr<Tensor> temp = this->squeeze(dim); return temp.release();};
-Tensor* unsqueeze_r(int dim) {std::unique_ptr<Tensor> temp = this->unsqueeze(dim); return temp.release();};
+//anchor handles the deletion of tensors in inference mode. anchor true tensors are deleted at the end of a complete inference rather than after a single step. 
+bool anchor;
+static std::vector<Tensor*> anchored_tensors;
 
-//unique ptr versions
-void view_other (std::unique_ptr<Tensor>& other){view_other(other.get());};
-void deep_equal (std::unique_ptr<Tensor>& other){deep_equal(other.get());};
-Tensor* add (std::unique_ptr<Tensor>& other) {return this->add(other.get());};
-Tensor* minus (std::unique_ptr<Tensor>& other) {return this->minus(other.get());};
-Tensor* mul (std::unique_ptr<Tensor>& other) {return this->mul(other.get());};
-Tensor* div (std::unique_ptr<Tensor>& other) {return this->div(other.get());};
-Tensor* pow (std::unique_ptr<Tensor>& other) {return this->pow(other.get());};
-Tensor* compare (std::unique_ptr<Tensor>& other) {return this->compare(other.get());};
-Tensor* max (std::unique_ptr<Tensor>& other) {return this->max(other.get());};
-Tensor* min (std::unique_ptr<Tensor>& other) {return this->min(other.get());};
-Tensor* matmul (std::unique_ptr<Tensor>& other) {return this->matmul(other.get());};
+void set_anchor_true();
+void set_anchor_false();
+static void clear_anchored();
 
 //saving and loading
 void save (std::ofstream &out_file);
 void load (std::ifstream &in_file);
 int ID;
+
+
+//debugging tools
+void print();
+std::string to_string();
+static std::string vec_str(std::vector<int> vec);
+static std::string op_to_str (Operation op);
+void print_tree(int tabs = 0);
+static void ASDF(){std::cout<<"ASDF"<<std::endl;};
+
+
+//float versions. operand resize is for deletion through delete_intermediates
+Tensor* add (float other){Tensor* b = Tensor::make_a_num(other); Tensor* result = this->add(b); b->requires_grad = false; b->operands.resize(1); return result;};
+Tensor* minus (float other){Tensor* b = Tensor::make_a_num(other); Tensor* result = this->minus(b); b->requires_grad = false; b->operands.resize(1); return result;};
+Tensor* mul (float other){Tensor* b = Tensor::make_a_num(other); Tensor* result = this->mul(b); b->requires_grad = false; b->operands.resize(1); return result;};
+Tensor* div (float other){Tensor* b = Tensor::make_a_num(other); Tensor* result = this->div(b); b->requires_grad = false; b->operands.resize(1); return result;};
+Tensor* pow (float other){Tensor* b = Tensor::make_a_num(other); Tensor* result = this->pow(b); b->requires_grad = false; b->operands.resize(1); return result;};
+Tensor* compare (float other){Tensor* b = Tensor::make_a_num(other); Tensor* result = this->compare(b); b->requires_grad = false; b->operands.resize(1); return result;};
+Tensor* max (float other){Tensor* b = Tensor::make_a_num(other); Tensor* result = this->max(b); b->requires_grad = false; b->operands.resize(1); return result;};
+Tensor* min (float other){Tensor* b = Tensor::make_a_num(other); Tensor* result = this->min(b); b->requires_grad = false; b->operands.resize(1); return result;};
+void add_ (float other){Tensor* b = Tensor::make_a_num(other); this->add_(b); delete b;};
+void minus_ (float other){Tensor* b = Tensor::make_a_num(other); this->minus_(b); delete b;};
+void mul_ (float other){Tensor* b = Tensor::make_a_num(other); this->mul_(b); delete b;};
+void div_ (float other){Tensor* b = Tensor::make_a_num(other); this->div_(b); delete b;};
+
 };
 
 #endif //TENSOR_HPP

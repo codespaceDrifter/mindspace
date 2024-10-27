@@ -1,2 +1,6 @@
 0: idx absolutely slow af sucks
 1: in inference mode the input /result tensors in each step are NOT deleted until the end of each pass. a lot of extra memory usage
+
+
+for the no idx version:
+launching SO MANY THREADS for broadcasting is probably bad too. maybe for that just use i%smaller tensor size

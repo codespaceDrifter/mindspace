@@ -10,7 +10,7 @@ public:
 // input is number of weights, output is number of neurons
 DenseLayer(int input = 0, int output = 0);
 
-Tensor* forward(Tensor* input) override;
+Tensor* forward_(Tensor* input, Tensor* input2 = nullptr) override;
 void init_members() override;
 
 Tensor* weight;

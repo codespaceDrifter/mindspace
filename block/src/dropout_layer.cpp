@@ -4,14 +4,13 @@ DropoutLayer::DropoutLayer(float percent){
     assert (percent >= 0 && percent <= 1);
     this->type = "DROPOUT_LAYER";
     this->register_block<DropoutLayer>();
-
-    this->percent = Tensor::make_a_num(percent);
-    this->parameters.push_back(this->percent);
+    this->parameters.push_back(Tensor::make_a_num(percent));
+    this->init_members();
 }
 
-Tensor* DropoutLayer::forward(Tensor* input){
+Tensor* DropoutLayer::forward_(Tensor* input, Tensor* input2){
 
-    if (this->training == false) return input;
+    if (Block::training == false) return input;
 
     Tensor * rand = new Tensor (input->shape);
     rand->randomize(0,1);

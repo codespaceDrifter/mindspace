@@ -4,7 +4,6 @@ void TensorTest::run_tests(){
     this->create_test();
     this->index_test();
     this->views_test();
-    this->in_place_views_test();
     this->topo_sort_test();
     this->add_test();
     this->minus_test();
@@ -20,6 +19,7 @@ void TensorTest::run_tests(){
     this->in_place_ops_test();
     this->save_load_test();
     std::cout<< "TENSOR TESTS: " << bool_to_str(all_passed);
+    std::cout<<std::endl;
 }
 
 
@@ -71,58 +71,36 @@ void TensorTest::views_test(){
     Tensor* A = new Tensor (2,2,2);
     A->arrange();
 
-    std::unique_ptr<Tensor> B = A->slice({{0,1}, {}, {1,2}});
+    Tensor* B = A->slice({{0,1}, {}, {1,2}});
     check (all_equal(B->shape, {1,2,1}), success);
-    check (all_equal(B.get(), {1,3}), success);
+    check (all_equal(B, {1,3}), success);
     if (this->debug == true) std::cout<<"slice: " << bool_to_str(success);
 
-    std::unique_ptr<Tensor> C = A->transpose();
+    Tensor* C = A->transpose();
     check (all_equal(C->shape, {2,2,2}), success);
-    check (all_equal(C.get(), {0,2,1,3,4,6,5,7}), success);
+    check (all_equal(C, {0,2,1,3,4,6,5,7}), success);
     if (this->debug == true) std::cout<<"transpose: " << bool_to_str(success);
 
-    std::unique_ptr<Tensor> D = A->unsqueeze(1);
+    Tensor* D = A->unsqueeze(1);
     check (all_equal(D->shape, {2,1,2,2}), success);
-    check (all_equal(D.get(), A), success);
+    check (all_equal(D, A), success);
     if (this->debug == true) std::cout<<"unsqueeze: " << bool_to_str(success);
 
-    std::unique_ptr<Tensor> E = D->squeeze(1);
+    Tensor* E = D->squeeze(1);
     check (all_equal(E->shape, {2,2,2}), success);
-    check (all_equal(E.get(), A), success);
+    check (all_equal(E, A), success);
     if (this->debug == true) std::cout<<"squeeze: " << bool_to_str(success);
+
     delete A;
+    delete B;
+    delete C;
+    delete D;
+    delete E;
 
     this->check_all_passed(success);
     std::cout<<"View Test: "<<bool_to_str(success)<<std::endl;
 }
 
-void TensorTest::in_place_views_test(){
-    bool success = true;
-
-    Tensor* A = new Tensor (2,2,2);
-    A->arrange();
-
-    A->slice_({{0,1}, {}, {1,2}});
-    check (all_equal(A->shape, {1,2,1}), success);
-    check (all_equal(A, {1,3}), success);
-    if (this->debug == true) std::cout<<"slice: " << bool_to_str(success);
-
-    A->transpose_();
-    check (all_equal(A->shape, {1,1,2}), success);
-    check (all_equal(A, {1,3}), success);
-
-    A->unsqueeze_(-1);
-    check (all_equal(A->shape, {1,1,2,1}), success);
-    check (all_equal(A, {1,3}), success);
-
-    A->squeeze_(0);
-    check (all_equal(A->shape, {1,2,1}), success);
-    check (all_equal(A, {1,3}), success);
-
-    delete A;
-    this->check_all_passed(success);
-    std::cout<<"In Place View Test: "<<bool_to_str(success)<<std::endl;
-}
 
 void TensorTest::topo_sort_test(){
     bool success = true;
@@ -364,7 +342,7 @@ void TensorTest::matmul_test(){
     Tensor* C = A->matmul(B);
     std::vector<float> correct_C_value {3,4,5,9,14,19,15,24,33,21,34,47};
     check (all_equal(C, correct_C_value), success);
-    
+
     C->backward_model();
 
     std::vector<float> correct_A_grad {3,12,3,12,3,12,3,12};
@@ -382,9 +360,8 @@ void TensorTest::views_backprop_test(){
     bool success = true;
     Tensor * A = new Tensor (2,2);
     A->arrange();
-    Tensor* B = A->slice_r({{0,1},{}});
-    Tensor* C = A->transpose_r();
-
+    Tensor* B = A->slice({{0,1},{}});
+    Tensor* C = A->transpose();
     Tensor* D = B->add(C);
 
     check (all_equal(D, {0,3,1,4}), success);
@@ -393,7 +370,6 @@ void TensorTest::views_backprop_test(){
 
     check (all_equal(A->grad, {3,3,1,1}), success);
 
-    delete A;
 
     this->check_all_passed(success);
     std::cout<<"views backprop test: "<<bool_to_str(success)<<std::endl;

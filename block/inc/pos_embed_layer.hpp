@@ -8,7 +8,7 @@ class PosEmbedLayer : public Block {
 public:
 PosEmbedLayer (int seq_len = 0, int embed_dim = 0);
 
-Tensor* forward(Tensor* input) override;
+Tensor* forward_(Tensor* input, Tensor* input2 = nullptr) override;
 void init_members() override;
 
 Tensor* mask;

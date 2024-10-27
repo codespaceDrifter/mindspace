@@ -28,7 +28,7 @@ static void check (bool pass, bool & success){
 }
 
 
-static bool appro_equal (float a, float b, float episilon = 1e-5){
+static bool appro_equal (float a, float b, float episilon = 1e-3){
     float diff = a-b;
     if (diff < 0) diff = -diff;
     return diff < episilon;

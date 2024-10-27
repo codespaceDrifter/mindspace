@@ -1,11 +1,20 @@
 #include "block.hpp"
 
 std::map<std::string, std::function<Block*()>> Block::block_types;
+bool Block::training = true;
 
 Block::~Block(){
     for (Tensor* tensor : this->parameters){
         delete tensor;
     }
+}
+
+Tensor* Block::forward (Tensor* input, Tensor* input2){
+    Tensor* result = this->forward_(input, input2);
+    if (Block::training == false){
+        result->delete_intermediates();
+    }
+    return result;
 }
 
 void Block::print(int tabs){
@@ -25,10 +34,16 @@ void Block::print(int tabs){
     }
 }
 
-void Block::set_mode_model(bool training){
-    std::vector<Block*> all_blocks = this->get_all_blocks();
-    for (Block* block : all_blocks){
-        block->training = training;
+
+void Block::init_randomize_model(float low, float high){
+    //if want a tensor to have a set value and not be randomized, set its requires_grad to false
+    std::vector<Block*> all_blocks= this->get_all_blocks();
+    for (Block* cur_block : all_blocks){
+        for (Tensor* cur_tensor : this-> parameters){
+            if (cur_tensor->requires_grad == true){
+                cur_tensor->randomize(low, high);
+            }
+        }
     }
 }
 
@@ -39,7 +54,6 @@ void Block::delete_model(){
     }
     delete this;
 }
-
 
 
 
@@ -110,7 +124,6 @@ void Block::ID_to_member(std::vector<Block*> all_blocks, std::vector<Tensor*> al
 
     this->sub_blocks.clear();
     this->parameters.clear();
-
 
     for (int tensor_id : this->parameters_ID){
         for (Tensor* tensor : all_tensors){
@@ -197,6 +210,7 @@ void Block::save_model (std::string path){
         tensor->save(out_file);
     }
 }
+
 
 
 Block* Block::load_model (std::string path){

@@ -17,11 +17,25 @@ void dropout_test();
 
 void ffw_test();
 
+void inference_test();
+
 void save_load_test();
 
 void embedding_test();
 
 void pos_embed_test();
+
+void add_norm_test();
+
+void softmax_test();
+
+void multiheaded_attention_test();
+
+void encoder_block_test();
+
+void decoder_block_test();
+
+void transformer_model_test();
 };
 
 

@@ -4,12 +4,11 @@
 EmbeddingLayer::EmbeddingLayer(int vocab_size, int embed_dim){
     this->type = "EMBEDDING_LAYER";
     this->register_block<EmbeddingLayer>();
-
-    this->embedding = new Tensor (vocab_size, embed_dim);
-    this->parameters.push_back(this->embedding);
+    this->parameters.push_back(new Tensor (vocab_size, embed_dim));
+    this->init_members();
 }
 
-Tensor* EmbeddingLayer::forward(Tensor* input) {
+Tensor* EmbeddingLayer::forward_(Tensor* input, Tensor* input2){
     std::vector<int> result_shape (input->shape);
     result_shape.push_back(this->embedding->shape.back());
 

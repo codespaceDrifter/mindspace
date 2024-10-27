@@ -5,23 +5,29 @@
 
 #include "functional"
 #include "typeinfo"
-
 class Block {
+
 public:
 
-//training
-virtual Tensor* forward(Tensor* input) = 0;
+//parameters
+std::vector<Tensor*> parameters;
+std::vector<Block*> sub_blocks;
 
-void set_mode_model(bool training);
+//forward
+Tensor* forward (Tensor* input, Tensor* input2 = nullptr);
+virtual Tensor* forward_(Tensor* input, Tensor* input2 = nullptr) = 0;
 
+//init
+void init_randomize_model (float low, float high);
+
+//deletion
 ~Block();
 void delete_model();
 
-void print(int tabs = 0);
+//training
+static bool training;
 
-std::vector<Tensor*> parameters;
-std::vector<Block*> sub_blocks;
-bool training = true; 
+
 
 //save and load
 virtual void init_members() = 0;
@@ -34,6 +40,8 @@ void ID_to_member(std::vector<Block*> all_blocks, std::vector<Tensor*> all_tenso
 void save (std::ofstream &out_file);
 static Block* load (std::ifstream &in_file);
 void save_model (std::string path = "bin/model.bin");
+
+
 static Block* load_model (std::string path = "bin/model.bin");
 
 int ID;
@@ -54,6 +62,9 @@ void register_block(){
 static Block* create_custom(std::string name);
 
 std::string type;
+
+//print
+void print(int tabs = 0);
 };
 
 #endif

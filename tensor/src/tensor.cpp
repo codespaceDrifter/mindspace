@@ -12,11 +12,33 @@ Tensor::Tensor (std::vector<int> shape, bool requires_grad){
     this->grad = nullptr;
     this->operation = Operation::None;
     this-> ID = -1;
+    this->anchor = false;
 }
 
 Tensor::~Tensor (){
+
     if (this->owns_data == true){
         delete[] this->data;
+    }
+
+    for (Tensor* cur_operand : this->operands){
+        if (cur_operand == nullptr) continue;
+        for (int i = 0; i < cur_operand->outputs.size(); ++i){
+            if (cur_operand->outputs[i] == this){
+                cur_operand->outputs.erase(cur_operand->outputs.begin()+i);
+                break;
+            }
+        }
+    }
+
+    for (Tensor* cur_output : this->outputs){
+        if (cur_output == nullptr) continue;
+        for (int i = 0; i < cur_output->operands.size(); ++i){
+            if (cur_output->operands[i] == this){
+                cur_output->operands.erase(cur_output->operands.begin()+i);
+                break;
+            }
+        }
     }
     if (this->requires_grad == true){
         delete this->grad;
@@ -87,47 +109,6 @@ void Tensor::tensor_init(){
     this->offset_init();
 }
 
-void Tensor::contiguous(){
-    assert (this->data_size == this->shape_size);
-    assert (this->shape.size() == this->stride.size() && this->shape.size() == this->lazy_stride.size() && this->shape.size() == this->offset.size());
-
-    //owns data
-    this->viewed = nullptr;
-    this->owns_data = true;
-
-    //data correct ordering. the old shape of tensor need to be broadcastable into the new shape.
-    float* new_data = new float [this->shape_size];
-    for (int i = 0; i < this->shape_size; ++i){
-        new_data[i] = this->idx(this->f_s(i));
-    }
-    this->data_switch(new_data);
-
-    //correct shape
-    this->compute_stride();
-    this->compute_lazy_stride();
-    this->offset_init();
-}
-
-
-void Tensor::view_other (Tensor* other){
-    assert (this->data_size == 0);
-    assert (other->data != this->data);
-    assert (this->requires_grad == other ->requires_grad);
-
-    assert (this->operands.size() == 0);
-    delete[] this->data;
-    this -> data = other -> data;
-    this -> data_size = other->data_size;
-    this -> shape = other -> shape;
-    this -> stride = other -> stride;
-    this -> lazy_stride = other->lazy_stride;
-    this -> offset = other -> offset;
-    this -> compute_shape_size();
-    this-> operands.push_back(other);
-    this -> viewed = other;
-    this -> owns_data = false;
-}
-
 
 void Tensor::deep_equal (Tensor* other){
     Tensor* temp = new Tensor (other->shape, other->requires_grad);
@@ -166,92 +147,13 @@ void Tensor::fill (float value){
     }
 }
 
-void Tensor::arrange (int start){
+void Tensor::arrange (float start, float step){
     for (int i = 0; i < this->data_size; ++i){
-        this->data[i] = start + i;
+        this->data[i] = start + i * step;
     }
 }
 
-void Tensor::print(){
-    std::cout << "shape: (";
-    for (int i = 0; i < this->shape.size(); ++i) {
-        std::cout << this->shape[i];
-        if (i != this->shape.size() - 1) std::cout << ", ";
-    }
-    std::cout <<")"<<std::endl;
-    std::cout <<"data: "<<std::endl;
-    std::cout <<this->to_string();
-}
 
-std::string Tensor::to_string(){
-    if (this->shape.size() == 0 ) return "";
-
-    std::vector<std::string> line_vec;
-    std::string temp_str;
-
-    for (int i = 0; i < this->shape_size; ++i){
-        if (this->shape[this->shape.size()-1] == 1 || i != 0 && (i+1) %(this->shape[this->shape.size()-1]) == 0){
-            temp_str += std::to_string(this->idx(this->f_s(i)));
-            temp_str = "[" + temp_str + "]";
-            line_vec.push_back(temp_str);
-            temp_str = "";
-        } else {
-            temp_str = temp_str + std::to_string(this->idx(this->f_s(i))) + ", ";
-        }
-    }
-
-    for (int i = this->shape.size() - 2; i > 0; --i){
-
-        int cur_divide = this->shape[i];
-        int cur_count = 0;
-        int cur_max_divides = 1;
-        int cur_divide_times = 1;
-
-        for (int z = 0; z < i; ++z){
-            cur_max_divides *= this->shape[z];
-        }
-
-        for (int j = 0; j < line_vec.size(); ++j) line_vec[j] = "  " + line_vec[j];
-
-        for (int j = 0; j < line_vec.size(); ++j){
-            if (i == this->shape.size() -2) cur_count ++;
-            else if (line_vec[j] == "  ]") cur_count ++;
-            if (cur_count / cur_divide == cur_divide_times && cur_count % cur_divide == 0 && cur_divide_times < cur_max_divides){
-                ++ cur_divide_times;
-                line_vec.insert(line_vec.begin()+j+1, "]");
-                j++;
-                line_vec.insert(line_vec.begin()+j+1, "[");
-                j++;
-            }
-        }
-        line_vec.insert(line_vec.begin(), "[");
-        line_vec.push_back("]");
-    }
-
-    std::string result;
-    for (int i = 0; i < line_vec.size(); ++i){
-        result = result + line_vec[i] + "\n";
-    }
-    return result;
-}
-
-std::string Tensor::vec_str(std::vector<int> vec){
-    std::string result;
-    result += "(";
-    for (int i = 0; i < vec.size(); ++i){
-        result += std::to_string(vec[i]);
-        if (i != vec.size()-1) result += ", ";
-    }
-    result += ")";
-    return result;
-}
-
-std::unique_ptr<Tensor> Tensor::create_view(){
-    Tensor* raw_result = new Tensor({}, this->requires_grad);
-    raw_result->view_other(this);
-    std::unique_ptr<Tensor> unique_result (raw_result);
-    return unique_result;
-}
 
 
 std::vector<int> Tensor::max_broadcast_shape (Tensor* other) const{
@@ -305,10 +207,28 @@ Tensor* Tensor::deep_broadcast(std::vector<int> target_shape){
     return result;
 }
 
-std::unique_ptr<Tensor> Tensor::slice(std::vector<std::vector<int>> slices){
+Tensor* Tensor::create_view(){
+    Tensor* result = new Tensor({}, this->requires_grad);
+    delete[] result->data;
+    result -> data = this -> data;
+    result -> data_size = this->data_size;
+    result -> shape = this -> shape;
+    result -> stride = this -> stride;
+    result -> lazy_stride = this->lazy_stride;
+    result -> offset = this -> offset;
+    result -> compute_shape_size();
+    result -> viewed = this;
+    result -> owns_data = false;
+    if (result->requires_grad == true){
+        result-> operands.push_back(this);
+        this-> outputs.push_back(result);
+    }
+    return result;
+}
 
-    std::unique_ptr<Tensor> result = this->create_view(); 
+Tensor* Tensor::slice(std::vector<std::vector<int>> slices){
     assert (slices.size() == this->shape.size());
+    Tensor* result = this->create_view();
     for (int i = 0; i < slices.size(); ++i){
         assert (slices[i].size() == 0 || slices[i].size() == 2);
         if (slices[i].size() == 2){
@@ -324,24 +244,35 @@ std::unique_ptr<Tensor> Tensor::slice(std::vector<std::vector<int>> slices){
     return result;
 }
 
-std::unique_ptr<Tensor> Tensor::transpose(int dim1, int dim2){
+Tensor* Tensor::slice(std::initializer_list<std::initializer_list<int>> slices){
+    std::vector<std::vector<int>> slices_vec (slices.size());
+    int i = 0;
+    for (std::initializer_list<int> inner_list : slices) {
+        slices_vec[i] = std::vector<int>(inner_list);
+        ++i;
+    }
+    return this->slice (slices_vec);
+}
+
+
+Tensor* Tensor::transpose(int dim1, int dim2){
     if (dim1 < 0) dim1 = this->shape.size() + dim1;
     if (dim2 < 0) dim2 = this->shape.size() + dim2;
     assert (dim1 >= 0 && dim1 < this->shape.size());
     assert (dim2 >= 0 && dim2 < this->shape.size());
 
-    std::unique_ptr<Tensor> result = this->create_view(); 
+    Tensor* result = this->create_view(); 
     std::swap(result->shape[dim1], result->shape[dim2]);
     std::swap (result->stride[dim1], result->stride[dim2]);
     std::swap (result->lazy_stride[dim1], result->lazy_stride[dim2]);
     return result; 
 }
 
-std::unique_ptr<Tensor> Tensor::squeeze(int dim){
+Tensor* Tensor::squeeze(int dim){
     if (dim < 0) dim = this->shape.size() + dim;
     assert (dim >= 0 && dim < this->shape.size());
     assert (this->shape[dim] == 1);
-    std::unique_ptr<Tensor> result = this->create_view();
+    Tensor* result = this->create_view();
     if (result->shape[dim] == 1){
         result->shape.erase(result->shape.begin() + dim);
         result->stride.erase(result->stride.begin() + dim);
@@ -351,8 +282,8 @@ std::unique_ptr<Tensor> Tensor::squeeze(int dim){
     return result;
 }
 
-std::unique_ptr<Tensor> Tensor::unsqueeze(int dim){
-    std::unique_ptr<Tensor> result = this->create_view();
+Tensor* Tensor::unsqueeze(int dim){
+    Tensor* result = this->create_view();
     if (dim < 0) dim = this->shape.size() + dim + 1;
 
     assert (dim >= 0 && dim <= this->shape.size());
@@ -370,26 +301,55 @@ std::unique_ptr<Tensor> Tensor::unsqueeze(int dim){
     return result;
 }
 
-
-void Tensor::slice_ (std::vector<std::vector<int>> slices){
-    std::unique_ptr<Tensor> temp = this->slice(slices);
-    this->deep_equal(temp);
+Tensor* Tensor::shape_view (std::vector<int> target_shape){
+    assert (this->owns_data == true);
+    Tensor* result = this->create_view();
+    int new_data_size = 1;
+    for (int i = 0; i < target_shape.size(); ++i){
+        new_data_size *= target_shape[i];
+    }
+    assert(new_data_size == this->data_size);
+    result->shape = target_shape;
+    result->compute_shape_size();
+    result->compute_stride();
+    result->compute_lazy_stride();
+    result->offset_init();
+    return result;
 }
 
-void Tensor::transpose_ (int dim1, int dim2){
-    std::unique_ptr<Tensor> temp = this->transpose(dim1, dim2);
-    this->deep_equal(temp);
+Tensor* Tensor::contiguous(){
+    Tensor* result = new Tensor (this->shape);
+    //opeartion
+    result->operation = Operation::Contigious;
+    result->operands.push_back(this);
+    this->outputs.push_back(result);
+
+    //data correct ordering. the old shape of tensor need to be broadcastable into the new shape.
+    for (int i = 0; i < this->shape_size; ++i){
+        result->data[i] = this->idx(this->f_s(i));
+    }
+    return result;
 }
 
 void Tensor::squeeze_ (int dim){
-    std::unique_ptr<Tensor> temp = this->squeeze(dim);
-    this->deep_equal(temp);
+    Tensor* viewed = this->squeeze(dim);
+    this->shape = viewed->shape;
+    this->stride = viewed->stride;
+    this->lazy_stride = viewed->lazy_stride;
+    this->offset = viewed->offset;
+    delete viewed;
 }
 
 void Tensor::unsqueeze_ (int dim){
-    std::unique_ptr<Tensor> temp = this->unsqueeze(dim);
-    this->deep_equal(temp);
+    Tensor* viewed = this->unsqueeze(dim);
+    this->shape = viewed->shape;
+    this->stride = viewed->stride;
+    this->lazy_stride = viewed->lazy_stride;
+    this->offset = viewed->offset;
+    delete viewed;
 }
+
+
 
 void Tensor::init_grad (){
     assert (this->grad == nullptr);
@@ -399,8 +359,7 @@ void Tensor::init_grad (){
     if (this->owns_data == true){
         this->grad = new Tensor (this->shape,false);
     } else {
-        this->grad = new Tensor({},false);
-        this->grad->view_other(this->viewed->grad);
+        this->grad = this->viewed->grad->create_view();
         this->grad->shape = this->shape;
         this->grad->stride = this->stride;
         this->grad->lazy_stride = this->lazy_stride;
@@ -415,6 +374,7 @@ void Tensor::topo_sort (std::set<Tensor*>& visited, std::vector<Tensor*>& sorted
     }
     visited.insert(this);
     for (Tensor* operand : this->operands){
+        if (operand == nullptr) continue;
         operand->topo_sort(visited, sorted);
     }
     sorted.push_back(this);
@@ -428,9 +388,10 @@ void Tensor::delete_intermediates(){
     std::vector<Tensor*> reverse_sorted = sorted;
     std::reverse (reverse_sorted.begin(), reverse_sorted.end());
 
-    for (int i = 0; i < reverse_sorted.size(); ++i){
-        if (reverse_sorted[i]->operands.size() > 0){
+    for (int i = 1; i < reverse_sorted.size(); ++i){
+        if (reverse_sorted[i] != nullptr && reverse_sorted[i]->operands.size() > 0 && reverse_sorted[i]->anchor == false){
             delete reverse_sorted[i];
+            reverse_sorted[i] = nullptr;
         }
     }
 }
@@ -453,24 +414,29 @@ void Tensor::backward_model (bool delete_intermediate){
     }
 
     for (int i = 0; i < reverse_sorted.size(); ++i){
-        //reverse_sorted[i]->print();
         reverse_sorted[i]->backprop();
     }
 
     if (delete_intermediate == true){
         this->delete_intermediates();
+        delete reverse_sorted[0];
     }
 }
 
+void Tensor::graph_construction (Tensor* other, Tensor* result){
+    result->operands.push_back(this);
+    result->operands.push_back(other);
+    this->outputs.push_back(result);
+    other->outputs.push_back(result);
+}
 
 
 Tensor* Tensor::add (Tensor* other){
     Tensor* result = nullptr;
     Op::add(this, other, result);
-    result->operation = Operation::Add;
-    result->operands.push_back(this);
-    result->operands.push_back(other);
 
+    result->operation = Operation::Add;
+    this->graph_construction(other, result);
     return result;
 }
 
@@ -479,8 +445,7 @@ Tensor* Tensor::minus (Tensor* other){
     Op::minus(this, other, result);
 
     result->operation = Operation::Minus;
-    result->operands.push_back(this);
-    result->operands.push_back(other);
+    this->graph_construction(other,result);
     return result;
 }
 
@@ -489,8 +454,7 @@ Tensor* Tensor::mul (Tensor* other){
     Op::mul(this, other, result);
 
     result->operation = Operation::Mul;
-    result->operands.push_back(this);
-    result->operands.push_back(other);
+    this->graph_construction(other,result);
     return result;
 }
 
@@ -499,8 +463,7 @@ Tensor* Tensor::div (Tensor* other){
     Op::div(this, other, result);
 
     result->operation = Operation::Div;
-    result->operands.push_back(this);
-    result->operands.push_back(other);
+    this->graph_construction(other,result);
     return result;
 }
 
@@ -509,10 +472,10 @@ Tensor* Tensor::pow (Tensor* other){
     Op::pow(this, other, result);
 
     result->operation = Operation::Pow;
-    result->operands.push_back(this);
-    result->operands.push_back(other);
+    this->graph_construction(other,result);
     return result;
 }
+
 
 Tensor* Tensor::reduce_sum (std::vector<int> target_shape){
     Tensor* result = nullptr;
@@ -520,12 +483,15 @@ Tensor* Tensor::reduce_sum (std::vector<int> target_shape){
 
     result->operation = Operation::ReduceSum;
     result->operands.push_back(this);
+    this->outputs.push_back(result);
     return result;
 }
 
 Tensor* Tensor::compare (Tensor* other){
     Tensor* result = nullptr;
     Op::compare(this, other, result);
+    result->operation = Operation::None;
+    this->graph_construction(other,result);
     return result;
 }
 
@@ -534,8 +500,7 @@ Tensor* Tensor::max (Tensor* other){
     Op::max(this, other, result);
 
     result->operation = Operation::Max;
-    result->operands.push_back(this);
-    result->operands.push_back(other);
+    this->graph_construction(other,result);
     return result;
 }
 
@@ -544,40 +509,11 @@ Tensor* Tensor::min (Tensor* other){
     Op::min(this, other, result);
 
     result->operation = Operation::Min;
-    result->operands.push_back(this);
-    result->operands.push_back(other);
+    this->graph_construction(other,result);
     return result;
 }
 
-std::unique_ptr<Tensor> Tensor::slice(std::initializer_list<std::initializer_list<int>> slices){
-    std::vector<std::vector<int>> slices_vec (slices.size());
-    int i = 0;
-    for (std::initializer_list<int> inner_list : slices) {
-        slices_vec[i] = std::vector<int>(inner_list);
-        ++i;
-    }
-    return this->slice (slices_vec);
-}
 
-void Tensor::slice_ (std::initializer_list<std::initializer_list<int>> slices){
-    std::vector<std::vector<int>> slices_vec (slices.size());
-    int i = 0;
-    for (std::initializer_list<int> inner_list : slices) {
-        slices_vec[i] = std::vector<int>(inner_list);
-        ++i;
-    }
-    this->slice_ (slices_vec);
-}
-
-Tensor* Tensor::slice_r(std::initializer_list<std::initializer_list<int>> slices){
-    std::vector<std::vector<int>> slices_vec (slices.size());
-    int i = 0;
-    for (std::initializer_list<int> inner_list : slices) {
-        slices_vec[i] = std::vector<int>(inner_list);
-        ++i;
-    }
-    return this->slice_r (slices_vec);
-}
 
 Tensor* Tensor::reduce_sum(int target_dim){
     if (target_dim < 0) target_dim = this->shape.size() + target_dim;
@@ -589,6 +525,7 @@ Tensor* Tensor::reduce_sum(int target_dim){
 
 Tensor* Tensor::matmul(Tensor* other){
     Tensor* result = nullptr;
+
     Op::matmul(this, other, result);
 
     result->operation = Operation::Matmul;
@@ -604,9 +541,13 @@ void Tensor::div_ (Tensor* other) {Tensor* temp = this; Op::div (this, other, te
 
 
 void Tensor::backprop (){
+    if (this->requires_grad == false) return;
 
     switch (this->operation){
         case Operation::None:
+            break;
+        case Operation::Contigious:
+            this->contigous_backprop();
             break;
         case Operation::Add:
             this->add_backprop();
@@ -641,23 +582,30 @@ void Tensor::backprop (){
     }
 }
 
+
 void Tensor::accumulate_grad (Tensor* grad_A, Tensor* grad_B){
 
     Tensor* operand_A = this->operands[0];
     Tensor* operand_B = this->operands[1];
 
-    if (operand_A->requires_grad == true){
+    if (operand_A != nullptr && operand_A->requires_grad == true){
         Tensor* reduced_grad_A = nullptr;
         Op::reduce_sum(grad_A, operand_A->shape, reduced_grad_A);
         Op::add(operand_A->grad, reduced_grad_A, operand_A->grad);
         delete reduced_grad_A;
     }
 
-    if (operand_B->requires_grad == true){
+    if (operand_B != nullptr && operand_B->requires_grad == true){
         Tensor* reduced_grad_B = nullptr;
         Op::reduce_sum(grad_B, operand_B->shape, reduced_grad_B);
         Op::add(operand_B->grad, reduced_grad_B, operand_B->grad);
         delete reduced_grad_B;
+    }
+}
+
+void Tensor::contigous_backprop(){
+    if (this->requires_grad == true){
+        this->operands[0]->add_(this->grad);
     }
 }
 
@@ -726,6 +674,8 @@ void Tensor::div_backprop(){
 }
 
 void Tensor::pow_backprop(){
+
+
     Tensor* operand_A = this->operands[0];
     Tensor* operand_B = this->operands[1];
 
@@ -831,16 +781,50 @@ void Tensor::matmul_backprop(){
     Tensor* grad_B = nullptr;
 
     if (operand_A->requires_grad == true){
-        Op::matmul (this->grad, operand_B->transpose().get(), grad_A);
+        Tensor* operand_B_T = operand_B->transpose();
+        Op::matmul (this->grad, operand_B_T, grad_A);
+        delete operand_B_T;
     }
     if (operand_B->requires_grad == true){
-        Op::matmul (operand_A->transpose().get(), this->grad, grad_B);
+        Tensor* operand_A_T = operand_A->transpose();
+        Op::matmul (operand_A_T, this->grad, grad_B);
+        delete operand_A_T;
     }
 
     this->accumulate_grad(grad_A, grad_B);
     delete grad_A;
     delete grad_B;
 }
+
+std::vector<Tensor*> Tensor::anchored_tensors;
+void Tensor::set_anchor_true(){
+    if (this->anchor == true) return;
+    this->anchor = true;
+    Tensor::anchored_tensors.push_back(this);
+    if (this->owns_data == false){
+        this->viewed->set_anchor_true();
+    }
+}
+
+void Tensor::set_anchor_false(){
+    assert (this->anchor == true);
+    for (int i = 0; i < anchored_tensors.size(); ++i){
+        if (anchored_tensors[i] == this){
+            anchored_tensors.erase(anchored_tensors.begin()+i);
+            break;
+        }
+    }
+    this->anchor = false;
+}
+
+void Tensor::clear_anchored(){
+    for (Tensor* cur : Tensor::anchored_tensors){
+        delete cur;
+        cur = nullptr;
+    }
+    anchored_tensors.clear();
+}
+
 
 void Tensor::save (std::ofstream &out_file){
     assert (this->owns_data == true);
@@ -872,4 +856,105 @@ void Tensor::load (std::ifstream &in_file){
     this->tensor_init();
     in_file.read(reinterpret_cast<char*> (&this->data_size), sizeof(this->data_size));
     in_file.read (reinterpret_cast<char*> (this->data), this->data_size * sizeof (float));
+}
+
+void Tensor::print(){
+    std::cout << "shape: (";
+    for (int i = 0; i < this->shape.size(); ++i) {
+        std::cout << this->shape[i];
+        if (i != this->shape.size() - 1) std::cout << ", ";
+    }
+    std::cout <<")"<<std::endl;
+    std::cout <<"data: "<<std::endl;
+    std::cout <<this->to_string();
+}
+
+std::string Tensor::to_string(){
+    if (this->shape.size() == 0 ) return "";
+
+    std::vector<std::string> line_vec;
+    std::string temp_str;
+
+    for (int i = 0; i < this->shape_size; ++i){
+        if (this->shape[this->shape.size()-1] == 1 || i != 0 && (i+1) %(this->shape[this->shape.size()-1]) == 0){
+            temp_str += std::to_string(this->idx(this->f_s(i)));
+            temp_str = "[" + temp_str + "]";
+            line_vec.push_back(temp_str);
+            temp_str = "";
+        } else {
+            temp_str = temp_str + std::to_string(this->idx(this->f_s(i))) + ", ";
+        }
+    }
+
+    for (int i = this->shape.size() - 2; i > 0; --i){
+
+        int cur_divide = this->shape[i];
+        int cur_count = 0;
+        int cur_max_divides = 1;
+        int cur_divide_times = 1;
+
+        for (int z = 0; z < i; ++z){
+            cur_max_divides *= this->shape[z];
+        }
+
+        for (int j = 0; j < line_vec.size(); ++j) line_vec[j] = "  " + line_vec[j];
+
+        for (int j = 0; j < line_vec.size(); ++j){
+            if (i == this->shape.size() -2) cur_count ++;
+            else if (line_vec[j] == "  ]") cur_count ++;
+            if (cur_count / cur_divide == cur_divide_times && cur_count % cur_divide == 0 && cur_divide_times < cur_max_divides){
+                ++ cur_divide_times;
+                line_vec.insert(line_vec.begin()+j+1, "]");
+                j++;
+                line_vec.insert(line_vec.begin()+j+1, "[");
+                j++;
+            }
+        }
+        line_vec.insert(line_vec.begin(), "[");
+        line_vec.push_back("]");
+    }
+
+    std::string result;
+    for (int i = 0; i < line_vec.size(); ++i){
+        result = result + line_vec[i] + "\n";
+    }
+    return result;
+}
+
+void Tensor::print_tree(int tabs){
+    std::cout<<std::string (tabs, '\t');
+    std::cout<<Tensor::vec_str(this->shape);
+    std::cout<<": "<<Tensor::op_to_str(this->operation) << std::endl;
+    tabs ++;
+    for (Tensor* cur : this->operands){
+        if (cur == nullptr) continue;
+        cur->print_tree(tabs);
+    }
+}
+
+std::string Tensor::vec_str(std::vector<int> vec){
+    std::string result;
+    result += "(";
+    for (int i = 0; i < vec.size(); ++i){
+        result += std::to_string(vec[i]);
+        if (i != vec.size()-1) result += ", ";
+    }
+    result += ")";
+    return result;
+}
+
+std::string Tensor::op_to_str (Operation op){
+    switch (op) {
+        case Operation::None:       return "None";
+        case Operation::Add:        return "Add";
+        case Operation::Minus:      return "Minus";
+        case Operation::Mul:        return "Mul";
+        case Operation::Div:        return "Div";
+        case Operation::Pow:        return "Pow";
+        case Operation::ReduceSum:  return "ReduceSum";
+        case Operation::Max:        return "Max";
+        case Operation::Min:        return "Min";
+        case Operation::Matmul:     return "Matmul";
+        default:                    return "Unknown";
+    }
 }

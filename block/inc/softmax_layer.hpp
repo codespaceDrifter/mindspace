@@ -1,12 +1,12 @@
-#ifndef RELU_LAYER_HPP
-#define RELU_LAYER_HPP
+#ifndef SOFTMAX_LAYER
+#define SOFTMAX_LAYER
 
 #include "block.hpp"
 
-class ReluLayer : public Block {
+class SoftmaxLayer : public Block {
 public:
 
-ReluLayer();
+SoftmaxLayer();
 
 Tensor* forward_(Tensor* input, Tensor* input2 = nullptr) override;
 void init_members() override;

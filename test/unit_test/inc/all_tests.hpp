@@ -5,17 +5,12 @@
 #include "block_tests.hpp"
 
 void run_all_tests(int run_times = 1){
-
-
     for (int i = 0; i < run_times; ++i){
         TensorTest tensor_test = TensorTest();
         tensor_test.run_tests();
-
         BlockTest block_test = BlockTest();
         block_test.run_tests();
     }
-
-
 }
 
 

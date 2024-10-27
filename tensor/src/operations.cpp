@@ -179,20 +179,16 @@ void matmul (Tensor* A, Tensor*B, Tensor*& output){
     if (A == nullptr || B == nullptr) return;
     assert (matmul_viable (A,B));
     assert (A != output && B != output);
-
-    std::unique_ptr<Tensor> A_view = A->unsqueeze(-2);
-    std::unique_ptr<Tensor> B_view = B->transpose()->unsqueeze(-3);
-
-
+    Tensor* A_view = A->unsqueeze(-2);
+    Tensor* B_view = B->transpose()->unsqueeze(-3);
     Tensor* C = nullptr;
-    mul (A_view.get(), B_view.get(), C);
-
+    mul (A_view, B_view, C);
     Tensor* C_reduced = nullptr;
     reduce_sum (C, -1, C_reduced);
-
     C_reduced->squeeze_(-1);
-    delete C;
     output = C_reduced;
+    delete A_view;
+    delete B_view;
 }
 
 //operations other forms
@@ -246,21 +242,13 @@ bool element_op_viable(Tensor*A, Tensor*B, Tensor* output){
         }
     }
 
-    //does not allow in place operations at the same time as lazy broadcasting
-    if (A == output || B == output){
-        for (int i = 0; i < A_padded.size(); ++i){
-            if (A_padded[i] != B_padded[i]){
-                return false;
-            }
-        }
-    } 
     return true;    
 }
 
 bool div_viable(Tensor*B){
     for (int i = 0; i < B->shape_size; ++i){
         float cur_num = B->idx(B->f_s(i));
-        if (appro_equal(cur_num,0) == true) return false;
+        if (std::abs(cur_num)< 1e-6) return false;
     }
     return true;
 }
@@ -282,6 +270,7 @@ bool log_viable (Tensor*A, Tensor*B){
 
 
 bool matmul_viable (Tensor*A, Tensor*B){
+
     std::vector<int> A_padded = A->shape;
     std::vector<int> B_padded = B->shape;
     A_padded.insert(A_padded.begin(), std::max(0,static_cast<int>(B_padded.size() - A_padded.size())), 1);
@@ -290,6 +279,7 @@ bool matmul_viable (Tensor*A, Tensor*B){
         if (A_padded[i] != B_padded[i] && A_padded[i] != 1 && B_padded[i] != 1) return false;
     }
     if (A_padded[A_padded.size()-1] != B_padded[B_padded.size()-2]) return false;
+
     return true;
 }
 }

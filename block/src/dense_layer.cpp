@@ -3,14 +3,12 @@
 DenseLayer::DenseLayer(int input, int output){
     this->type = "DENSE_LAYER";
     this->register_block<DenseLayer>();
-
-    this->weight = new Tensor (input, output);
-    this->bias = new Tensor (1,output);
-    this->parameters.push_back(this->weight);
-    this->parameters.push_back(this->bias);
+    this->parameters.push_back(new Tensor (input, output));
+    this->parameters.push_back(new Tensor (1,output));
+    this->init_members();
 }
 
-Tensor* DenseLayer::forward(Tensor* input) {
+Tensor* DenseLayer::forward_(Tensor* input, Tensor* input2) {
     Tensor * A = input -> matmul (this->weight);
     Tensor * result = A-> add (bias);
     return result;

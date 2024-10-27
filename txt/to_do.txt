@@ -1,3 +1,8 @@
+add FLOAT versions for tensor operations in place especially
+make a num, then delete
+also for all the operation backprop check for (if oeprand_A != nullptr && operand_A->requires_grad == true)
+
+
 
 0: transformer blocks, tests for blocks, save load. call the transofrmer "transformer_model.hpp"
 1: dataloader and optimizer (standard and adam)
