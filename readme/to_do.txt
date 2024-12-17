@@ -1,0 +1,6 @@
+1: dataloader and optimizer (standard and adam)
+2: CUDA tutorial 
+3: CUDA tensor ops
+
+4: make make a tensor "spirit graph" that pre runs all the computations in a model once so tensors can be deleted right after they will last be used in the graph. this saves
+code complexity for all the delete intermediates and training and testing diffs and anchor system. also saves memory.

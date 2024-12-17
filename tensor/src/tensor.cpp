@@ -169,26 +169,36 @@ std::vector<int> Tensor::max_broadcast_shape (Tensor* other) const{
     return result;
 }
 
-Tensor* Tensor::vertical_stack (std::vector<Tensor*> tensor_vec){
-    std::vector<int> shape_without_first (tensor_vec[0]->shape.begin()+1, tensor_vec[0]->shape.end());
-    for (int i = 1; i < tensor_vec.size(); ++i){
-        assert (tensor_vec[i]->owns_data == true);
-        std::vector<int> cur_shape_without_first (tensor_vec[i]->shape.begin()+1, tensor_vec[i]->shape.end());
-        assert (cur_shape_without_first == shape_without_first);
+Tensor* Tensor::vertical_stack(std::vector<Tensor*> tensor_vec) {
+    // Verify shapes are compatible
+    std::vector<int> shape_without_first(tensor_vec[0]->shape.begin()+1, tensor_vec[0]->shape.end());
+    for (int i = 1; i < tensor_vec.size(); ++i) {
+        assert(tensor_vec[i]->owns_data == true);
+        std::vector<int> cur_shape_without_first(tensor_vec[i]->shape.begin()+1, tensor_vec[i]->shape.end());
+        assert(cur_shape_without_first == shape_without_first);
     }
-    std::vector<int> result_shape (shape_without_first);
+
+    // Calculate new shape
+    std::vector<int> result_shape(shape_without_first);
     int total_first_dim = 0;
-    for (int i = 0; i < tensor_vec.size(); ++i){
+    for (int i = 0; i < tensor_vec.size(); ++i) {
         total_first_dim += tensor_vec[i]->shape[0];
     }
-    result_shape.insert (result_shape.begin(), total_first_dim);
+    result_shape.insert(result_shape.begin(), total_first_dim);
+    
+    // Create result tensor
     Tensor* result = new Tensor(result_shape, false);
-
-    int cur_data_place = 0;
-    for (int i = 0; i < tensor_vec.size(); ++i){
-        std::copy(tensor_vec[i]->data, tensor_vec[i]->data + tensor_vec[i]->data_size, result->data + cur_data_place);
-        cur_data_place += tensor_vec[i]->data_size;
+    
+    // Copy data taking strides into account
+    int result_idx = 0;
+    for (int i = 0; i < tensor_vec.size(); ++i) {
+        Tensor* cur_tensor = tensor_vec[i];
+        for (int j = 0; j < cur_tensor->shape_size; ++j) {
+            std::vector<int> indices = cur_tensor->f_s(j);
+            result->data[result_idx++] = cur_tensor->idx(indices);
+        }
     }
+    
     return result;
 }
 
@@ -423,6 +433,7 @@ void Tensor::backward_model (bool delete_intermediate){
     }
 }
 
+
 void Tensor::graph_construction (Tensor* other, Tensor* result){
     result->operands.push_back(this);
     result->operands.push_back(other);
@@ -512,8 +523,6 @@ Tensor* Tensor::min (Tensor* other){
     this->graph_construction(other,result);
     return result;
 }
-
-
 
 Tensor* Tensor::reduce_sum(int target_dim){
     if (target_dim < 0) target_dim = this->shape.size() + target_dim;
